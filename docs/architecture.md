@@ -198,8 +198,9 @@ Code: `Services/Buzzer/`. Protocol: [buzzer-protocol.md](buzzer-protocol.md).
 - **App → server:** `MacpardyApp` watches `GameState` and pushes teams, scores, the buzzer
   mode (`armed` on a normal question, `unavailable` on Daily Double, `disabled` otherwise), and
   Final wagering open/closed (open exactly while `phase == .finalMacpardyCategory`), and
-  Final answering (`GameState.finalAnswerWindow`: open on `.finalMacpardyQuestion`, locked on
-  `.finalMacpardyAnswer`, closed otherwise).
+  Final answering (`GameState.finalAnswerWindow`: open on `.finalMacpardyQuestion` while the
+  timer has time left, locked once `GameTimer.isExpired` or on `.finalMacpardyAnswer`, closed
+  otherwise; synced whenever that value changes).
   It also forwards `BuzzerState.firstBuzzTeamID` to `GameState.teamBuzzedIn`, and sends the
   response timer's start / stop to the phones when `answeringTeamID` changes (the phones
   count down themselves).

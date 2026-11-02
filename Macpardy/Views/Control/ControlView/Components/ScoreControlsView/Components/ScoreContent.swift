@@ -88,7 +88,7 @@ extension ScoreControlsView {
                     Text(verbatim: answer)
                         .fontWeight(.semibold)
                         .textSelection(.enabled)
-                } else if gameState.phase == .finalMacpardyQuestion {
+                } else if gameState.finalAnswerWindow == .open {
                     Text("control.score.fj_answer.waiting")
                         .foregroundStyle(.secondary)
                 } else {

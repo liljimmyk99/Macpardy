@@ -49,6 +49,41 @@ final class FinalAnswerGameStateTests: XCTestCase {
         XCTAssertEqual(state.finalMacpardyAnswers[rich.id], "What is Paris?")
     }
 
+    func testAnswersLockWhenTimerRunsOut() {
+        let (state, rich, _) = makeState()
+        state.showFinalMacpardy()
+        state.revealFinalMacpardyQuestion()
+        state.setFinalAnswer(teamID: rich.id, answer: "What is Paris?")
+
+        state.timer.addSeconds(-10_000)
+        XCTAssertTrue(state.timer.isExpired)
+        XCTAssertEqual(state.finalAnswerWindow, .locked)
+        state.setFinalAnswer(teamID: rich.id, answer: "What is Lyon?")
+        XCTAssertEqual(state.finalMacpardyAnswers[rich.id], "What is Paris?", "late answer ignored")
+
+        // The host gives more time: answers reopen.
+        state.timer.addSeconds(5)
+        XCTAssertFalse(state.timer.isExpired)
+        XCTAssertEqual(state.finalAnswerWindow, .open)
+        state.setFinalAnswer(teamID: rich.id, answer: "What is Lyon?")
+        XCTAssertEqual(state.finalMacpardyAnswers[rich.id], "What is Lyon?")
+
+        // Running out again, then resetting the timer, reopens too.
+        state.timer.addSeconds(-10_000)
+        XCTAssertEqual(state.finalAnswerWindow, .locked)
+        state.resetTimer()
+        XCTAssertEqual(state.finalAnswerWindow, .open)
+    }
+
+    func testRevealAfterTimeUpStaysLocked() {
+        let (state, _, _) = makeState()
+        state.showFinalMacpardy()
+        state.revealFinalMacpardyQuestion()
+        state.timer.addSeconds(-10_000)
+        state.revealAnswer()
+        XCTAssertEqual(state.finalAnswerWindow, .locked)
+    }
+
     func testUnknownTeamAndBlankAnswerAreIgnored() {
         let (state, rich, _) = makeState()
         state.showFinalMacpardy()

@@ -158,8 +158,10 @@ A game works without phones. When the game starts, the app serves a page on the 
   with its max (its score). Only the first submission counts; after that only the host can
   change it. Excluded teams are told they can't win points.
 - **Final answers:** while the Final clue is shown, every phone (excluded teams too) gets an
-  answer box. **Send answer** (or Enter) saves it; the team can change it until the host
-  reveals the correct response, when it locks and the phone shows what was sent. Answers
+  answer box. **Send answer** (or Enter) saves it; the team can change it until the Final
+  timer runs out or the host reveals the correct response, when it locks and the phone shows
+  what was sent. Adding time (+5 s) or resetting the timer while the clue is up reopens it.
+  If the timer never runs (e.g. the Display isn't open), answers stay open until the reveal. Answers
   are trimmed to one line, at most 200 characters. Only the host sees them until they show
   one on the Display. Teams that never had a phone get no answer row, so games without
   buzzers look as before.

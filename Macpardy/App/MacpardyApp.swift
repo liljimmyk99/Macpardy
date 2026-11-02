@@ -215,14 +215,15 @@ struct MacpardyApp: App {
         .onChange(of: gameState.answeringTeamID) { _, teamID in
             Task { await buzzerState.setResponseTimer(teamID: teamID, seconds: gameState.responseSeconds) }
         }
-        // Wagering is open exactly while the Final category is displayed;
-        // answering while the Final clue is up (locked once the response is shown).
+        // Wagering is open exactly while the Final category is displayed.
         .onChange(of: gameState.phase) { _, phase in
-            Task {
-                await syncWagering()
-                await syncAnswering()
-            }
+            Task { await syncWagering() }
             SoundPlayer.shared.handle(phase: phase)
+        }
+        // Answering is open while the Final clue is up and its timer has time
+        // left; it locks when time runs out or the response is revealed.
+        .onChange(of: gameState.finalAnswerWindow) { _, _ in
+            Task { await syncAnswering() }
         }
         .commands {
             FileCommands(coordinator: boardOpenCoordinator)

@@ -261,18 +261,20 @@ final class GameState {
 
     // MARK: - Final answers (#80)
 
-    /// Phones can type answers while the Final clue is up; once the correct
-    /// response is revealed they are read-only. Closed everywhere else.
+    /// Phones can type answers while the Final clue is up and its timer has
+    /// time left. They lock when the timer runs out (and reopen if the host
+    /// adds time or resets it) and stay locked once the correct response is
+    /// revealed. Closed everywhere else.
     var finalAnswerWindow: FinalAnswerWindow {
         switch phase {
-        case .finalMacpardyQuestion: .open
+        case .finalMacpardyQuestion: timer.isExpired ? .locked : .open
         case .finalMacpardyAnswer: .locked
         default: .closed
         }
     }
 
-    /// Stores an answer a phone sent. Ignored once answering has closed, so
-    /// what the host sees at the reveal is final.
+    /// Stores an answer a phone sent. Ignored unless answering is open, so an
+    /// answer that arrives after time runs out doesn't count.
     func setFinalAnswer(teamID: UUID, answer: String) {
         guard finalAnswerWindow == .open,
               game.teams.contains(where: { $0.id == teamID }) else { return }

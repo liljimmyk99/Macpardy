@@ -95,9 +95,9 @@ Answered with `wagerLocked` or `wagerRejected`.
 ### `submitAnswer`
 
 A Final Macpardy answer. Only valid after a successful `claim` and while answering is
-open (the Final clue is up). Every team can answer, including teams excluded from
-wagering. The latest valid submission counts, so a team can change its answer until the
-host reveals the correct response. Answered with `answerSaved` or `answerRejected`.
+open (the Final clue is up and its timer has time left). Every team can answer, including
+teams excluded from wagering. The latest valid submission counts, so a team can change its
+answer until time runs out or the host reveals the correct response. Answered with `answerSaved` or `answerRejected`.
 
 ```json
 { "type": "submitAnswer", "answer": "What is Paris?" }
@@ -472,14 +472,16 @@ Wagering is over; the phone returns to the buzzer.
 
 ## Final Macpardy answers
 
-Answering is open while the Final clue is displayed, locked (read-only) once the host
-reveals the correct response, and closed everywhere else. A team's answer is only sent
+Answering is open while the Final clue is displayed and its timer has time left, locked
+(read-only) when the timer runs out or the host reveals the correct response, and closed
+everywhere else. If the host adds time or resets the timer while the clue is still up,
+answering reopens (another `answerInfo` with `open: true`). A team's answer is only sent
 to that team's own phone; the host sees every answer on the Control window and can show
 one team's answer and wager at a time on the Display.
 
 ### `answerInfo`
 
-Sent to a single phone when answering opens, when it locks, and after `claimAccepted`
+Sent to a single phone when answering opens, locks or reopens, and after `claimAccepted`
 while it is open or locked.
 
 ```json
