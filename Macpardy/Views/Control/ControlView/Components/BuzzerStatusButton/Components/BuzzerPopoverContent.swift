@@ -20,7 +20,16 @@ extension BuzzerStatusButton {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-                .padding([.horizontal, .bottom], 16)
+                .padding(.horizontal, 16)
+
+            // Why a phone dropped: opens the Logs window on the Buzzer filter (#81).
+            Button("control.buzzer.popover.view_logs", systemImage: "doc.text.magnifyingglass") {
+                openWindow(id: "logs")
+            }
+            .buttonStyle(.link)
+            .font(.caption)
+            .padding([.horizontal, .bottom], 16)
+            .padding(.top, 8)
         }
         .frame(width: 380)
     }

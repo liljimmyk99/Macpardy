@@ -180,7 +180,7 @@ struct CreateMacpardyGameView: View {
         ) { result in
             switch result {
             case .success(let url):
-                AppLogger.database.info("Saved boards to \(url.lastPathComponent, privacy: .public)")
+                AppLogger.database.info("Saved boards to \(url.lastPathComponent)")
                 RecentBoards.shared.note(url)
                 savedDraft = draftBeingSaved
                 suggestedFilename = nil

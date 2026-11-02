@@ -43,7 +43,14 @@ Macpardy/
 │   ├── GameSnapshot.swift        Codable auto-save payload (schemaVersion)
 │   └── BoardEditorSession.swift  Launch screen ⇄ editor ⇄ app handoff, unsaved-changes prompts
 ├── Services/                     Non-UI logic and I/O
-│   ├── AppLogger.swift           OSLog categories
+│   ├── AppLogger.swift           AppLogger categories + MacpardyLogger facade (os.Logger + LogCenter)
+│   ├── Logging/                  App-owned log (#81, see architecture.md#logging)
+│   │   ├── LogEntry.swift            Level, category, one line; JSON Lines + text formats
+│   │   ├── LogRingBuffer.swift       Fixed-size newest-N buffer
+│   │   ├── LogCenter.swift           @Observable: live lines for the Logs window, feeds the store
+│   │   ├── LogFileStore.swift        actor: one .jsonl per launch, flushing, retention
+│   │   ├── LogExporter.swift         Export Logs… zip + LogArchiveDocument
+│   │   └── SystemInfoReport.swift    system-info.txt
 │   ├── GameTimerService.swift    GameTimer (15 s countdown)
 │   ├── Sound/                    SoundEffect (sounds + phase cues), SoundPlayer (see sounds.md)
 │   ├── GameSaveStore.swift       actor: auto-save read/write/clear
@@ -73,6 +80,11 @@ Macpardy/
 │       ├── AttemptRateLimiter.swift  Join-code / claim rate limiting
 │       ├── JoinCodeGenerator.swift   6-char codes without look-alike characters
 │       ├── QRCodeGenerator.swift     Join URL → QR image
+│       ├── DisconnectReason.swift    Why a phone was dropped; close codes; LogDuration
+│       ├── PhoneDisconnectReport.swift  The phone's `diag` report on its last connection
+│       ├── UserAgentSummary.swift    "Safari 18 on iOS 18.1" from a User-Agent
+│       ├── LocalNetworkInterfaces.swift  The Mac's IPv4 addresses; which one phones use
+│       ├── NetworkPathSummary.swift  "Wi-Fi (en0)" for Mac network-change lines
 │       └── BuzzerConstants.swift     Default port, timeouts, tie window, limits, protocol version
 ├── Views/
 │   ├── LaunchScreenView/         Start screen: Play / New Board / Edit Board tiles, resume banner
@@ -87,6 +99,11 @@ Macpardy/
 │   ├── Display/
 │   │   └── PresentationView/     TV/projector screen (animated, see MacpardyMotion): board, question, answer, Daily
 │   │                             Double, Final, timer, scoreboard
+│   ├── Logs/
+│   │   └── LogsView/             Logs window: run / category / level / team filters, search,
+│   │                             follow-latest list, Export Logs… (Models/LogFilter.swift)
+│   ├── Settings/                 Settings window panes
+│   ├── Shortcuts/                Keyboard Shortcuts window
 │   └── Shared/                   Theme, buttons, headers, image placeholder, WindowCloseGuard
 ├── Resources/
 │   ├── Buzzer/buzzer.html        Phone buzzer page (HTML + CSS + JS in one file)
@@ -146,7 +163,10 @@ One `<Type>Tests.swift` per type under test:
 | `TeamClaimRegistryTests`, `AttemptRateLimiterTests` | Team claims, rate limits |
 | `FinalWagerBookTests`, `FinalWagerDefaultsTests` | Final Macpardy wagers |
 | `FinalAnswerBookTests`, `FinalAnswerGameStateTests` | Final Macpardy answers from phones, Display spotlight |
-| `BuzzerProtocolTests`, `WebSocketFrameParserTests` | Wire messages and frames |
+| `BuzzerProtocolTests`, `WebSocketFrameParserTests` | Wire messages and frames, `join` with / without / garbage `diag` |
+| `DisconnectReasonTests`, `PhoneDisconnectReportTests`, `UserAgentSummaryTests` | Disconnect reasons, close codes, durations, phone reports, browser names |
+| `LocalNetworkInterfacesTests`, `BuzzerServerTests` | Join IP choice, network path text, HTTP header parsing |
+| `LogRingBufferTests`, `LogFileStoreTests`, `LogFilterTests`, `LogExporterTests` | Live buffer, JSON Lines, retention, filters, export zip and system info |
 | `TestImages` | Helper for building image fixtures |
 
 ## `docs/`

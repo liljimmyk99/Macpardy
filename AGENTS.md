@@ -102,7 +102,11 @@ When you add or change a `.keyboardShortcut`, update the shortcut tables in
 
 ### Logging
 Use `AppLogger` (`Services/AppLogger.swift`) with the matching category: `control`,
-`display`, `database` (storage/files), `buzzer`. Don't use `print`.
+`display`, `database` (storage/files), `buzzer`, `network` (the Mac's own network). Don't
+use `print` or a raw `os.Logger`. Messages are plain `String`s, written unredacted to the
+system log and to the app's own log (Logs window, exports), so don't log Final answers or
+anything more personal than team names, local IPs and browser versions. Pass `team:` / `remote:` on buzzer
+lines about one phone so the Logs window can filter them.
 
 ### Tests
 - XCTest, in `MacpardyTests/`, one file per type under test (`<Type>Tests.swift`), classes

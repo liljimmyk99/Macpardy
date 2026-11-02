@@ -69,6 +69,7 @@ final class ShortcutCatalogTests: XCTestCase {
         XCTAssertEqual(AppShortcut.nextRound.glyph, "⌘→")
         XCTAssertEqual(AppShortcut.resetTimer.glyph, "⌘←")
         XCTAssertEqual(AppShortcut.toggleTimer.glyph, "⌘T")
+        XCTAssertEqual(AppShortcut.showLogs.glyph, "⌥⌘L")
     }
 
     func testEveryAreaTitleIsLocalized() {
@@ -80,7 +81,7 @@ final class ShortcutCatalogTests: XCTestCase {
     }
 
     func testAppOwnedShortcutsAreNotMarkedSystemProvided() {
-        for shortcut in [AppShortcut.saveGame, .newBoard, .toggleTimer, .keyboardShortcuts] {
+        for shortcut in [AppShortcut.saveGame, .newBoard, .toggleTimer, .keyboardShortcuts, .showLogs] {
             XCTAssertFalse(shortcut.isSystemProvided)
         }
         XCTAssertTrue(AppShortcut.settings.isSystemProvided)

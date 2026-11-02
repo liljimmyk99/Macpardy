@@ -28,6 +28,7 @@ Full walkthrough: [docs/features.md](docs/features.md).
 | ⌘R | **Reveal Answer** |
 | ⌘, | **Settings** (sound, timers, starting teams, buzzer port) |
 | ⌘/ | **Keyboard Shortcuts** window (also the keyboard button in the Control toolbar) |
+| ⌥⌘L | **Logs** window: why phones dropped, with **Export Logs…** |
 | ⌘D | **Show Display** |
 | ⌘B | **Return to Board** (on a clue) |
 | ⌘⇧B | **Buzzers** popover |

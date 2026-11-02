@@ -4698,6 +4698,390 @@
           }
         }
       }
+    },
+    "logs.window.title" : {
+      "comment" : "Title of the Logs window",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logs"
+          }
+        }
+      }
+    },
+    "menu.help.show_logs" : {
+      "comment" : "Help menu item that opens the Logs window",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Logs"
+          }
+        }
+      }
+    },
+    "control.buzzer.popover.view_logs" : {
+      "comment" : "Link in the Buzzers popover that opens the Logs window",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View Logs"
+          }
+        }
+      }
+    },
+    "logs.search.prompt" : {
+      "comment" : "Search field prompt in the Logs window",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search messages, teams, addresses"
+          }
+        }
+      }
+    },
+    "logs.subtitle.count %lld %lld" : {
+      "comment" : "Logs window subtitle. Arguments: lines shown, lines in the selected run",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld of %2$lld lines"
+          }
+        }
+      }
+    },
+    "logs.empty.title" : {
+      "comment" : "Logs window when no lines are shown",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Log Lines"
+          }
+        }
+      }
+    },
+    "logs.empty.no_lines" : {
+      "comment" : "Logs window when the selected run has no lines",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing has been logged yet."
+          }
+        }
+      }
+    },
+    "logs.empty.filtered" : {
+      "comment" : "Logs window when the filters hide every line",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No lines match the current filters."
+          }
+        }
+      }
+    },
+    "logs.button.jump_to_latest" : {
+      "comment" : "Logs window button that scrolls back to the newest line",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jump to Latest"
+          }
+        }
+      }
+    },
+    "logs.picker.run" : {
+      "comment" : "Logs window picker: which app launch's log to show",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Run"
+          }
+        }
+      }
+    },
+    "logs.picker.run.help" : {
+      "comment" : "Tooltip for the Logs window run picker",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show this session live, or the log of an earlier launch"
+          }
+        }
+      }
+    },
+    "logs.run.live" : {
+      "comment" : "Logs window run picker: the current launch, updating live",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This Session (Live)"
+          }
+        }
+      }
+    },
+    "logs.picker.category" : {
+      "comment" : "Logs window picker: which category to show",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Category"
+          }
+        }
+      }
+    },
+    "logs.category.all" : {
+      "comment" : "Logs window category filter: every category",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All Categories"
+          }
+        }
+      }
+    },
+    "logs.category.control" : {
+      "comment" : "Log category: the Control window and game",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Control"
+          }
+        }
+      }
+    },
+    "logs.category.display" : {
+      "comment" : "Log category: the Display window",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Display"
+          }
+        }
+      }
+    },
+    "logs.category.storage" : {
+      "comment" : "Log category: files and saves",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Storage"
+          }
+        }
+      }
+    },
+    "logs.category.buzzer" : {
+      "comment" : "Log category: phone buzzers",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buzzer"
+          }
+        }
+      }
+    },
+    "logs.category.network" : {
+      "comment" : "Log category: the Mac's own network",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Network"
+          }
+        }
+      }
+    },
+    "logs.picker.level" : {
+      "comment" : "Logs window picker: the least severe level shown",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Minimum Level"
+          }
+        }
+      }
+    },
+    "logs.picker.level.help" : {
+      "comment" : "Tooltip for the Logs window level picker",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide lines below this level"
+          }
+        }
+      }
+    },
+    "logs.level.debug" : {
+      "comment" : "Log level",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Debug"
+          }
+        }
+      }
+    },
+    "logs.level.info" : {
+      "comment" : "Log level",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Info"
+          }
+        }
+      }
+    },
+    "logs.level.notice" : {
+      "comment" : "Log level",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notice"
+          }
+        }
+      }
+    },
+    "logs.level.warning" : {
+      "comment" : "Log level",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warning"
+          }
+        }
+      }
+    },
+    "logs.level.error" : {
+      "comment" : "Log level",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Error"
+          }
+        }
+      }
+    },
+    "logs.picker.team" : {
+      "comment" : "Logs window picker: only lines about one team",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Team"
+          }
+        }
+      }
+    },
+    "logs.team.all" : {
+      "comment" : "Logs window team filter: every team",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All Teams"
+          }
+        }
+      }
+    },
+    "logs.button.export" : {
+      "comment" : "Logs window button that saves the logs as a zip",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export Logs…"
+          }
+        }
+      }
+    },
+    "logs.button.export.help" : {
+      "comment" : "Tooltip for Export Logs",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save the kept logs and system info as a .zip you can send to the developer"
+          }
+        }
+      }
+    },
+    "logs.export.privacy_note" : {
+      "comment" : "Message in the Export Logs save panel",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The export contains team names, local IP addresses and phone browser info."
+          }
+        }
+      }
+    },
+    "logs.export.error.title" : {
+      "comment" : "Alert title when exporting logs fails",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't Export Logs"
+          }
+        }
+      }
     }
   },
   "version" : "1.1"

@@ -93,7 +93,7 @@ final class SoundPlayer {
     private func player(for effect: SoundEffect) -> AVAudioPlayer? {
         if let existing = players[effect] { return existing }
         guard let url = bundle.url(forResource: effect.rawValue, withExtension: effect.fileExtension) else {
-            AppLogger.control.error("Missing sound \(effect.rawValue, privacy: .public)")
+            AppLogger.control.error("Missing sound \(effect.rawValue)")
             return nil
         }
         do {
@@ -103,7 +103,7 @@ final class SoundPlayer {
             players[effect] = player
             return player
         } catch {
-            AppLogger.control.error("Can't load sound \(effect.rawValue, privacy: .public): \(error.localizedDescription)")
+            AppLogger.control.error("Can't load sound \(effect.rawValue): \(error.localizedDescription)")
             return nil
         }
     }

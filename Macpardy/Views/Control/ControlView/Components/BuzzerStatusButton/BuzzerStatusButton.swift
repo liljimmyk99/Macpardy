@@ -12,6 +12,7 @@ struct BuzzerStatusButton: View {
 
     @Environment(GameState.self) var gameState
     @Environment(BuzzerState.self) var buzzerState
+    @Environment(\.openWindow) var openWindow
 
     var body: some View {
         @Bindable var buzzerState = buzzerState

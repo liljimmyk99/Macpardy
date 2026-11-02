@@ -327,7 +327,7 @@
 
 <script>
   // ─── Config ──────────────────────────────────────────────────────────────
-  const PROTOCOL_VERSION = 7;
+  const PROTOCOL_VERSION = 8;
   const WATCHDOG_MS      = 5_000;   // server pings every 2s; silence this long = lost
   const PIN_LENGTH       = 6;
   const WS_URL           = `ws://${location.hostname}:${location.port}/ws`;
@@ -354,6 +354,15 @@
   let answerPending = false;  // a submitted answer hasn't been confirmed yet
   let response     = null;    // { teamID, endsAt (ms), total } while a team is answering
   let responseTid  = null;
+
+  // ─── Disconnect report (v8) ──────────────────────────────────────────────
+  // How the last connection ended, kept in localStorage and sent as `diag` on
+  // the next join so the Mac can log the phone's side (the Mac only sees a
+  // missing pong). Cleared once a join is accepted.
+  const DIAG_KEY     = "macpardy.lastDisconnect";
+  let joinedAt     = 0;       // when the current connection's join was accepted (0 = not joined)
+  let hiddenMs     = 0;       // time the page spent hidden during this connection
+  let hiddenSince  = null;    // when the page was last hidden, while it still is
 
   // ─── DOM refs ────────────────────────────────────────────────────────────
   const card          = document.getElementById("card");
@@ -739,6 +748,62 @@
   toast.addEventListener("click", hideToast);
   toastClose.addEventListener("click", event => { event.stopPropagation(); hideToast(); });
 
+  // ─── Disconnect report helpers ───────────────────────────────────────────
+  function pageHidden() {
+    if (hiddenSince === null) hiddenSince = Date.now();
+  }
+
+  function pageVisible() {
+    if (hiddenSince !== null) {
+      hiddenMs += Date.now() - hiddenSince;
+      hiddenSince = null;
+    }
+  }
+
+  document.addEventListener("visibilitychange", () => document.hidden ? pageHidden() : pageVisible());
+  window.addEventListener("pagehide", pageHidden);
+  window.addEventListener("pageshow", () => { if (!document.hidden) pageVisible(); });
+
+  function startConnectionClock() {
+    joinedAt = Date.now();
+    hiddenMs = 0;
+    hiddenSince = document.hidden ? Date.now() : null;
+  }
+
+  // Saves how the joined connection ended. Only the first call per connection counts.
+  function recordDisconnect(cause, closeCode = null, closeReason = "") {
+    if (!joinedAt) return;
+    const now = Date.now();
+    const report = {
+      cause,
+      connectedMs: now - joinedAt,
+      hiddenMs: hiddenMs + (hiddenSince !== null ? now - hiddenSince : 0),
+      hiddenAtLoss: hiddenSince !== null || document.hidden,
+      at: now,
+    };
+    if (closeCode !== null) report.closeCode = closeCode;
+    if (closeReason) report.closeReason = String(closeReason).slice(0, 64);
+    joinedAt = 0;
+    try { localStorage.setItem(DIAG_KEY, JSON.stringify(report)); } catch {}
+  }
+
+  // The saved report as the join's `diag` object, or undefined.
+  function pendingDiag() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(DIAG_KEY) ?? "null");
+      if (!saved || typeof saved !== "object") return undefined;
+      const { at, ...diag } = saved;
+      if (typeof at === "number") diag.secondsSince = Math.max(0, Math.round((Date.now() - at) / 1000));
+      return diag;
+    } catch {
+      return undefined;
+    }
+  }
+
+  function clearDiag() {
+    try { localStorage.removeItem(DIAG_KEY); } catch {}
+  }
+
   // ─── Connection ──────────────────────────────────────────────────────────
   // Opens a socket and joins with `pin`. Called only from the PIN screen and on
   // load with `?code=`; there is no automatic reconnect.
@@ -747,6 +812,7 @@
     if (ws) {
       const old = ws;
       ws = null;          // its close event is ignored from here on
+      joinedAt = 0;       // replaced on purpose: nothing to report
       old.close();
     }
     hideToast();
@@ -757,7 +823,7 @@
     try {
       socket = new WebSocket(WS_URL);
     } catch {
-      connectionLost(null);
+      connectionLost(null, "socketError");
       return;
     }
     ws = socket;
@@ -769,7 +835,10 @@
       resetAnswer();       // the server resends it after the claim if answering is on
       buzzState = "waiting";
       stopResponse();      // the server resends it after the claim if still running
-      send({ type: "join", version: PROTOCOL_VERSION, code: pin });
+      const join = { type: "join", version: PROTOCOL_VERSION, code: pin };
+      const diag = pendingDiag();
+      if (diag) join.diag = diag;
+      send(join);
       startWatchdog(socket);
     });
 
@@ -781,6 +850,8 @@
 
       switch (msg.type) {
         case "joinAccepted":
+          clearDiag();
+          startConnectionClock();
           acceptedPin = pin;
           setURLCode(pin);
           teams = msg.payload?.teams ?? [];
@@ -862,6 +933,7 @@
           break;
 
         case "removed":
+          recordDisconnect("removed");
           intentionalClose = true;
           stopWatchdog();
           stopResponse();
@@ -907,8 +979,8 @@
     });
 
     // Both events fire on a failed connection; connectionLost is idempotent.
-    socket.addEventListener("close", () => connectionLost(socket));
-    socket.addEventListener("error", () => connectionLost(socket));
+    socket.addEventListener("close", event => connectionLost(socket, "socketClose", event.code, event.reason));
+    socket.addEventListener("error", () => connectionLost(socket, "socketError"));
   }
 
   // The server refused the PIN. A PIN that worked before (or came from the QR
@@ -940,6 +1012,7 @@
 
   // The host completed the game, resumed a save, or left: the PIN is dead.
   function sessionEnded(socket) {
+    recordDisconnect("sessionEnded");
     intentionalClose = true;
     ws = null;
     acceptedPin = null;
@@ -953,8 +1026,9 @@
 
   // Unexpected close, failed connection, or watchdog silence: back to the PIN
   // screen with the last PIN filled in, and the "Unable to find client" toast.
-  function connectionLost(socket) {
+  function connectionLost(socket, cause, closeCode = null, closeReason = "") {
     if (socket !== ws || intentionalClose) return;
+    recordDisconnect(cause, closeCode, closeReason);
     intentionalClose = true;
     ws = null;
     showPin({ value: acceptedPin ?? pin });
@@ -969,7 +1043,7 @@
     watchdogTid = setInterval(() => {
       if (socket !== ws) { stopWatchdog(); return; }
       if (Date.now() - lastServerMsgAt > WATCHDOG_MS) {
-        connectionLost(socket);
+        connectionLost(socket, "watchdog");
         socket.close();
       }
     }, 1_000);

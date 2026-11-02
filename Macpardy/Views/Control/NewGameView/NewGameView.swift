@@ -156,7 +156,7 @@ private struct CSVImportOption: View {
     private func handleTemplateSaved(_ result: Result<URL, Error>) {
         switch result {
         case .success(let url):
-            AppLogger.database.info("Saved CSV template to \(url.lastPathComponent, privacy: .public)")
+            AppLogger.database.info("Saved CSV template to \(url.lastPathComponent)")
             statusMessage = String(localized: "new_game.csv.template_saved \(url.lastPathComponent)")
         case .failure(let error):
             if (error as? CocoaError)?.code != .userCancelled {
@@ -181,10 +181,10 @@ private struct CSVImportOption: View {
                 defaultTextWarnings = CSVBoardImporter.defaultTextWarnings(from: data)
                 importedTitle = title
                 jsonDocument = MacpardyJSONBoardDocument(boards: boards)
-                AppLogger.database.info("Imported CSV \(url.lastPathComponent, privacy: .public)")
+                AppLogger.database.info("Imported CSV \(url.lastPathComponent)")
             } catch let error as CSVBoardImporter.ImportError {
                 issues = error.issues
-                AppLogger.database.info("CSV \(url.lastPathComponent, privacy: .public) has \(error.issues.count) problem(s)")
+                AppLogger.database.info("CSV \(url.lastPathComponent) has \(error.issues.count) problem(s)")
             } catch {
                 statusMessage = String(localized: "new_game.csv.read_failed \(error.localizedDescription)")
                 AppLogger.database.error("Failed to read CSV: \(error.localizedDescription)")
@@ -197,7 +197,7 @@ private struct CSVImportOption: View {
     private func handleJSONSaved(_ result: Result<URL, Error>) {
         switch result {
         case .success(let url):
-            AppLogger.database.info("Saved imported board to \(url.lastPathComponent, privacy: .public)")
+            AppLogger.database.info("Saved imported board to \(url.lastPathComponent)")
             if let boards = jsonDocument?.boards {
                 onPlay(boards)
             }

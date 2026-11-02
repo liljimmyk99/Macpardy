@@ -107,7 +107,7 @@ final class BoardOpenCoordinator {
     }
 
     private func begin(_ boards: [MacpardyBoard], from url: URL) {
-        AppLogger.database.info("Opened \(url.lastPathComponent, privacy: .public) to play")
+        AppLogger.database.info("Opened \(url.lastPathComponent) to play")
         recents.note(url)
         startGame(boards)
     }
@@ -136,7 +136,7 @@ final class BoardOpenCoordinator {
     }
 
     private func open(_ draft: BoardDraft, from url: URL) {
-        AppLogger.database.info("Opened \(url.lastPathComponent, privacy: .public) for editing")
+        AppLogger.database.info("Opened \(url.lastPathComponent) for editing")
         recents.note(url)
         editorSession.edit(draft)
         showEditor()
@@ -145,7 +145,7 @@ final class BoardOpenCoordinator {
     // MARK: - Loading
 
     private func fail(_ url: URL, _ error: Error) {
-        AppLogger.database.error("Can't open \(url.lastPathComponent, privacy: .public): \(String(describing: error), privacy: .public)")
+        AppLogger.database.error("Can't open \(url.lastPathComponent): \(String(describing: error))")
         // A file that has moved or can't be read shouldn't stay in the menu.
         if !FileManager.default.isReadableFile(atPath: url.path) {
             recents.remove(url)
