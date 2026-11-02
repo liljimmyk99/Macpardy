@@ -11,7 +11,8 @@ can buzz in from their phones over the local network. No accounts, no server, no
 - Or fill in a CSV template in any spreadsheet app and import it
 - Open, edit, and re-save existing games (`.macpardy` packages, `.json`, `.csv`)
 - Separate host and audience windows, with timer, scores, Daily Double and Final wagers
-- Phone buzzers: scan a QR code, pick a team, buzz; fair tie-breaking, a 5 s response timer and wrong-answer lockout
+- Phone buzzers: scan a QR code, pick a team, buzz; fair tie-breaking, a 5 s response timer and wrong-answer lockout;
+  Final wagers and answers typed on the phone, with each team's answer shown on the Display
 - Display animations (board intro, clue flips, Daily Double, score changes), switchable in Settings
 - Auto-save, so a game can be resumed after a quit or crash
 

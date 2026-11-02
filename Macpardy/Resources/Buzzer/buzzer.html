@@ -117,7 +117,7 @@
       from { opacity: 0; transform: translateX(-16px); }
       to   { opacity: 1; transform: none; }
     }
-    .pin, .teams, .wager, .response { animation: rise 0.35s ease-out; }
+    .pin, .teams, .wager, .answer, .response { animation: rise 0.35s ease-out; }
     .status-icon { animation: pop 0.45s ease-out; }
     .pin-input.shake { animation: shake 0.4s ease-in-out; }
     .team-row.enter { animation: row-in 0.35s ease-out backwards; }
@@ -239,6 +239,29 @@
     .wager-submit:disabled { opacity: 0.45; }
     .wager-error { color: var(--red); min-height: 1.2em; }
 
+    /* Final answer: typed while the clue is up, read-only once the response is revealed */
+    .answer { display: none; flex-direction: column; gap: 12px; width: 100%; text-align: center; }
+    .answer-label { font-size: 1rem; font-weight: 700; opacity: 0.85; }
+    .answer-input {
+      font: inherit; font-size: 1.3rem; font-weight: 600; line-height: 1.3;
+      padding: 12px; border: 0; border-radius: 16px; width: 100%;
+      color: #1a1a1a; resize: none;
+    }
+    .answer-count { font-size: 0.85rem; opacity: 0.6; text-align: right; }
+    .answer-submit {
+      font: inherit; font-size: 1.4rem; font-weight: 800; padding: 16px;
+      border: 0; border-radius: 16px; background: var(--gold); color: #1a1a1a;
+    }
+    .answer-submit:disabled { opacity: 0.45; }
+    .answer-status { font-weight: 600; color: var(--gold); min-height: 1.2em; line-height: 1.3; }
+    .answer-error { color: #ffb0b0; font-weight: 600; min-height: 1.2em; line-height: 1.3; }
+    .answer-locked {
+      font-size: 1.4rem; font-weight: 700; line-height: 1.3;
+      background: rgba(255,255,255,0.1); border-radius: 16px; padding: 16px;
+      overflow-wrap: anywhere;
+    }
+    .answer-locked.empty { font-weight: 600; opacity: 0.7; }
+
     /* Response timer: one dot per second, going out left to right */
     .response { display: none; flex-direction: column; align-items: center; gap: 10px; }
     .response-label { font-size: 1rem; font-weight: 700; opacity: 0.85; }
@@ -283,6 +306,17 @@
       <div class="response-label" id="responseLabel"></div>
     </div>
     <div class="wager" id="wager"></div>
+    <form class="answer" id="answerForm" autocomplete="off" novalidate>
+      <label class="answer-label" id="answerLabel" for="answerInput">Your answer</label>
+      <textarea class="answer-input" id="answerInput" rows="3" maxlength="200"
+                autocomplete="off" autocorrect="off" spellcheck="false"
+                enterkeyhint="send" placeholder="What is…"></textarea>
+      <div class="answer-count" id="answerCount"></div>
+      <button class="answer-submit" id="answerSubmit" type="submit">Send answer</button>
+      <div class="answer-locked" id="answerLocked"></div>
+      <div class="answer-status" id="answerStatus" role="status"></div>
+      <div class="answer-error" id="answerError" role="alert"></div>
+    </form>
   </div>
 </div>
 
@@ -293,7 +327,7 @@
 
 <script>
   // ─── Config ──────────────────────────────────────────────────────────────
-  const PROTOCOL_VERSION = 6;
+  const PROTOCOL_VERSION = 7;
   const WATCHDOG_MS      = 5_000;   // server pings every 2s; silence this long = lost
   const PIN_LENGTH       = 6;
   const WS_URL           = `ws://${location.hostname}:${location.port}/ws`;
@@ -315,6 +349,9 @@
   let tooEarlyTid  = null;
   let wagerInfo    = null;    // Final wager screen state from the server, null when closed
   let wagerError   = "";
+  let answerInfo   = null;    // Final answer screen state from the server, null when closed
+  let answerError  = "";
+  let answerPending = false;  // a submitted answer hasn't been confirmed yet
   let response     = null;    // { teamID, endsAt (ms), total } while a team is answering
   let responseTid  = null;
 
@@ -336,6 +373,14 @@
   const responseEl    = document.getElementById("response");
   const responseDots  = document.getElementById("responseDots");
   const responseLabel = document.getElementById("responseLabel");
+  const answerForm    = document.getElementById("answerForm");
+  const answerLabel   = document.getElementById("answerLabel");
+  const answerInput   = document.getElementById("answerInput");
+  const answerCount   = document.getElementById("answerCount");
+  const answerSubmit  = document.getElementById("answerSubmit");
+  const answerLocked  = document.getElementById("answerLocked");
+  const answerStatus  = document.getElementById("answerStatus");
+  const answerErrorEl = document.getElementById("answerError");
 
   const BUZZ_LABELS = {
     waiting:     "Waiting for the question\u2026",
@@ -365,6 +410,7 @@
     if (state !== "connected") buzzerEl.style.display = "none";
     if (state !== "connected") wagerEl.style.display = "none";
     if (state !== "connected") responseEl.style.display = "none";
+    if (state !== "connected") answerForm.style.display = "none";
   }
 
   function renderBuzzer() {
@@ -408,7 +454,7 @@
   // Dots under the buzzer while any team is answering. At zero they stay out
   // until the host judges the answer.
   function renderResponse() {
-    if (!response || !myTeamId || wagerInfo) {
+    if (!response || !myTeamId || wagerInfo || answerInfo) {
       responseEl.style.display = "none";
       return;
     }
@@ -489,6 +535,86 @@
     wagerEl.style.display = "flex";
   }
 
+  // ─── Final answer ────────────────────────────────────────────────────────
+  // The form is built once and updated in place, so a `teams` update or the
+  // server's reply never wipes what the player is typing.
+  const ANSWER_ERRORS = {
+    notOpen: "Answers are locked.",
+    empty:   "Type an answer first.",
+    tooLong: "That answer is too long.",
+  };
+
+  // Same clean-up as the server: one line, no surrounding spaces.
+  function normaliseAnswer(value) {
+    return String(value).split(/\r\n|\r|\n/).join(" ").trim();
+  }
+
+  function renderAnswer() {
+    buzzerEl.style.display = "none";
+    const open  = answerInfo.open;
+    const saved = answerInfo.answer ?? null;
+    const draft = normaliseAnswer(answerInput.value);
+
+    answerInput.maxLength       = answerInfo.maxLength ?? 200;
+    answerInput.style.display   = open ? "block" : "none";
+    answerCount.style.display   = open ? "block" : "none";
+    answerSubmit.style.display  = open ? "block" : "none";
+    answerLocked.style.display  = open ? "none" : "block";
+
+    if (open) {
+      answerLabel.textContent = "Your Final answer";
+      answerCount.textContent = `${answerInput.value.length}/${answerInput.maxLength}`;
+      answerSubmit.textContent = answerPending ? "Sending\u2026" : (saved == null ? "Send answer" : "Update answer");
+      answerSubmit.disabled = answerPending || draft === "" || draft === saved;
+      answerStatus.textContent = saved == null
+        ? "You can change it until the answer is revealed."
+        : (draft === saved ? "Answer saved. You can change it until the answer is revealed."
+                           : "Not sent yet \u2013 tap Update answer.");
+    } else {
+      answerLabel.textContent = "Answers are locked";
+      answerLocked.classList.toggle("empty", saved == null);
+      answerLocked.textContent = saved ?? "You didn\u2019t send an answer.";
+      answerStatus.textContent = "";
+    }
+    answerErrorEl.textContent = answerError;
+    answerForm.style.display = "flex";
+  }
+
+  function submitAnswer() {
+    if (!answerInfo?.open || answerPending) return;
+    const answer = normaliseAnswer(answerInput.value);
+    if (!answer) { answerError = ANSWER_ERRORS.empty; renderAnswer(); return; }
+    answerError = "";
+    answerPending = true;
+    send({ type: "submitAnswer", answer });
+    renderAnswer();
+  }
+
+  answerForm.addEventListener("submit", event => {
+    event.preventDefault();
+    submitAnswer();
+  });
+
+  // Enter sends rather than adding a line break (answers are one line).
+  answerInput.addEventListener("keydown", event => {
+    if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+      event.preventDefault();
+      submitAnswer();
+    }
+  });
+
+  answerInput.addEventListener("input", () => {
+    answerError = "";
+    if (answerInfo) renderAnswer();
+  });
+
+  function resetAnswer() {
+    answerInfo = null;
+    answerError = "";
+    answerPending = false;
+    answerInput.value = "";
+  }
+
   // Shows the team picker, or the held team's status once this phone has one.
   function renderTeams() {
     const mine = teams.find(t => t.id === myTeamId);
@@ -496,10 +622,15 @@
 
     if (mine) {
       setState("connected", `You\u2019re ${mine.name}`);
-      if (wagerInfo) {
+      if (answerInfo) {
+        wagerEl.style.display = "none";
+        renderAnswer();
+      } else if (wagerInfo) {
+        answerForm.style.display = "none";
         renderWager();
       } else {
         wagerEl.style.display = "none";
+        answerForm.style.display = "none";
         renderBuzzer();
       }
       renderResponse();
@@ -510,6 +641,7 @@
     }
 
     responseEl.style.display = "none";
+    answerForm.style.display = "none";
     setState("connected", "Pick your team",
              teams.length ? "" : "The host hasn\u2019t set up any teams yet.");
     const firstShow = teamsEl.style.display !== "flex";   // not on later updates
@@ -562,6 +694,7 @@
     myTeamId   = null;
     wagerInfo  = null;
     wagerError = "";
+    resetAnswer();
     buzzState  = "waiting";
     clearTimeout(tooEarlyTid);
     stopResponse();
@@ -633,6 +766,7 @@
       if (socket !== ws) return;
       myTeamId = null;     // a new connection never holds a team yet
       wagerInfo = null;
+      resetAnswer();       // the server resends it after the claim if answering is on
       buzzState = "waiting";
       stopResponse();      // the server resends it after the claim if still running
       send({ type: "join", version: PROTOCOL_VERSION, code: pin });
@@ -694,6 +828,36 @@
         case "wagerClosed":
           wagerInfo = null;
           wagerError = "";
+          if (myTeamId) renderTeams();
+          break;
+
+        case "answerInfo": {
+          const info = msg.payload ?? null;
+          // Entering the screen (or rejoining): start from the saved answer.
+          // Later updates keep whatever the player is typing.
+          if (!answerInfo && info) answerInput.value = info.answer ?? "";
+          answerInfo = info;
+          answerError = "";
+          answerPending = false;
+          if (myTeamId) renderTeams();
+          break;
+        }
+
+        case "answerSaved":
+          if (answerInfo) answerInfo.answer = msg.payload?.answer ?? null;
+          answerError = "";
+          answerPending = false;
+          if (myTeamId) renderTeams();
+          break;
+
+        case "answerRejected":
+          answerError = ANSWER_ERRORS[msg.payload?.reason] ?? "Couldn\u2019t send that answer.";
+          answerPending = false;
+          if (myTeamId) renderTeams();
+          break;
+
+        case "answerClosed":
+          resetAnswer();
           if (myTeamId) renderTeams();
           break;
 

@@ -114,8 +114,8 @@ final class BuzzerProtocolTests: XCTestCase {
 
     // MARK: - Game PIN entry and session end (#61)
 
-    func testProtocolVersionIsSix() {
-        XCTAssertEqual(BuzzerConstants.protocolVersion, 6)
+    func testProtocolVersionIsSeven() {
+        XCTAssertEqual(BuzzerConstants.protocolVersion, 7)
     }
 
     func testJoinRejectedEncodesCodeAndReason() throws {
@@ -140,5 +140,57 @@ final class BuzzerProtocolTests: XCTestCase {
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
         XCTAssertEqual(object["type"] as? String, "sessionEnded")
         XCTAssertNil(object["payload"])
+    }
+
+    // MARK: - Final answers (#80)
+
+    func testSubmitAnswerDecodes() throws {
+        let json = Data(#"{"type":"submitAnswer","answer":"What is Paris?"}"#.utf8)
+        let message = try JSONDecoder().decode(ClientMessage.self, from: json)
+        guard case .submitAnswer(let answer) = message else { return XCTFail("expected submitAnswer") }
+        XCTAssertEqual(answer, "What is Paris?")
+    }
+
+    func testSubmitAnswerWithoutAnswerIsRejected() {
+        let json = Data(#"{"type":"submitAnswer"}"#.utf8)
+        XCTAssertThrowsError(try JSONDecoder().decode(ClientMessage.self, from: json))
+    }
+
+    func testAnswerInfoEncoding() throws {
+        let data = try ServerMessage.answerInfo(AnswerInfo(open: true, answer: "Paris", maxLength: 200)).jsonData()
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(object["type"] as? String, "answerInfo")
+        let payload = try XCTUnwrap(object["payload"] as? [String: Any])
+        XCTAssertEqual(payload["open"] as? Bool, true)
+        XCTAssertEqual(payload["answer"] as? String, "Paris")
+        XCTAssertEqual(payload["maxLength"] as? Int, 200)
+    }
+
+    func testAnswerInfoOmitsMissingAnswer() throws {
+        let data = try ServerMessage.answerInfo(AnswerInfo(open: false, answer: nil, maxLength: 200)).jsonData()
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let payload = try XCTUnwrap(object["payload"] as? [String: Any])
+        XCTAssertEqual(payload["open"] as? Bool, false)
+        XCTAssertNil(payload["answer"])
+    }
+
+    func testAnswerSavedRejectedAndClosedEncoding() throws {
+        let saved = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: try ServerMessage.answerSaved(answer: "Paris").jsonData()) as? [String: Any]
+        )
+        XCTAssertEqual(saved["type"] as? String, "answerSaved")
+        XCTAssertEqual((saved["payload"] as? [String: Any])?["answer"] as? String, "Paris")
+
+        let rejected = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: try ServerMessage.answerRejected(.tooLong).jsonData()) as? [String: Any]
+        )
+        XCTAssertEqual(rejected["type"] as? String, "answerRejected")
+        XCTAssertEqual((rejected["payload"] as? [String: Any])?["reason"] as? String, "tooLong")
+
+        let closed = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: try ServerMessage.answerClosed.jsonData()) as? [String: Any]
+        )
+        XCTAssertEqual(closed["type"] as? String, "answerClosed")
+        XCTAssertNil(closed["payload"])
     }
 }

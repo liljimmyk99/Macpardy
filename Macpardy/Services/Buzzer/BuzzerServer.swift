@@ -48,6 +48,7 @@ actor BuzzerServer {
     private var scores: [UUID: Int] = [:]
     private var engine = BuzzerEngine()
     private var wagerBook = FinalWagerBook()
+    private var answerBook = FinalAnswerBook()
     private var tieWindowTask: Task<Void, Never>?
     /// The answering team's response countdown, while one is running.
     private var responseTimer: (teamID: UUID, endsAt: Date, total: TimeInterval)?
@@ -82,6 +83,12 @@ actor BuzzerServer {
     /// Emits each wager a phone submits, so the app can store it.
     private var wagerContinuation: AsyncStream<WagerSubmission>.Continuation?
     nonisolated let wagerStream: AsyncStream<WagerSubmission>
+
+    // MARK: - Answer stream
+
+    /// Emits each Final answer a phone saves, so the app can store it.
+    private var answerContinuation: AsyncStream<AnswerSubmission>.Continuation?
+    nonisolated let answerStream: AsyncStream<AnswerSubmission>
 
     // MARK: - Connection-count stream
 
@@ -134,6 +141,10 @@ actor BuzzerServer {
         var wagerCont: AsyncStream<WagerSubmission>.Continuation!
         self.wagerStream = AsyncStream { wagerCont = $0 }
         self.wagerContinuation = wagerCont
+
+        var answerCont: AsyncStream<AnswerSubmission>.Continuation!
+        self.answerStream = AsyncStream { answerCont = $0 }
+        self.answerContinuation = answerCont
 
         var failureCont: AsyncStream<String>.Continuation!
         self.listenerFailureStream = AsyncStream { failureCont = $0 }
@@ -224,6 +235,7 @@ actor BuzzerServer {
         claimedContinuation?.finish()
         firstBuzzContinuation?.finish()
         wagerContinuation?.finish()
+        answerContinuation?.finish()
         failureContinuation?.finish()
         AppLogger.buzzer.info("BuzzerServer stopped")
     }
@@ -357,6 +369,40 @@ actor BuzzerServer {
     private func sendWagerInfo(toTeam teamID: UUID) {
         guard let info = wagerBook.info(for: teamID) else { return }
         send(.wagerInfo(info), toTeam: teamID)
+    }
+
+    // MARK: - Final Macpardy answers
+
+    /// Opens, locks or closes Final answering and updates every claimed phone.
+    /// `answers` are the answers stored in the game, so a restarted server or a
+    /// rejoining phone shows what the team already sent.
+    func setAnswering(_ window: FinalAnswerWindow, answers: [UUID: String]) {
+        let wasOpen = answerBook.window != .closed
+        answerBook.set(window, answers: answers)
+        for teamID in claims.claimedTeamIDs {
+            if window == .closed {
+                if wasOpen { send(.answerClosed, toTeam: teamID) }
+            } else {
+                sendAnswerInfo(toTeam: teamID)
+            }
+        }
+    }
+
+    private func sendAnswerInfo(toTeam teamID: UUID) {
+        guard let info = answerBook.info(for: teamID) else { return }
+        send(.answerInfo(info), toTeam: teamID)
+    }
+
+    private func handleSubmitAnswer(_ answer: String, from session: ClientSession) {
+        guard let teamID = claims.teamID(for: session.id) else { return }
+        switch answerBook.submit(teamID: teamID, answer: answer) {
+        case .accepted(let saved):
+            session.send(.answerSaved(answer: saved))
+            answerContinuation?.yield(AnswerSubmission(teamID: teamID, answer: saved))
+            AppLogger.buzzer.info("Team \(teamID) saved a Final answer")
+        case .rejected(let reason):
+            session.send(.answerRejected(reason))
+        }
     }
 
     private func send(_ message: ServerMessage, toTeam teamID: UUID) {
@@ -712,6 +758,7 @@ actor BuzzerServer {
                 session.send(.claimAccepted(teamID: teamID))
                 sendBuzzerState(toTeam: teamID)
                 sendWagerInfo(toTeam: teamID)
+                sendAnswerInfo(toTeam: teamID)
                 sendResponseTimer(to: session)
                 claimsChanged()
                 AppLogger.buzzer.info("[\(session.id)] Claimed team \(teamID)")
@@ -719,6 +766,7 @@ actor BuzzerServer {
                 session.send(.claimAccepted(teamID: teamID))
                 sendBuzzerState(toTeam: teamID)
                 sendWagerInfo(toTeam: teamID)
+                sendAnswerInfo(toTeam: teamID)
                 sendResponseTimer(to: session)
             // Refresh the picker first so the rejection message isn't wiped by it.
             case .taken:
@@ -739,6 +787,10 @@ actor BuzzerServer {
         case .submitWager(let amount):
             guard session.isAuthenticated else { return }
             handleSubmitWager(amount, from: session)
+
+        case .submitAnswer(let answer):
+            guard session.isAuthenticated else { return }
+            handleSubmitAnswer(answer, from: session)
         }
     }
 

@@ -1,4 +1,4 @@
-# Macpardy! Buzzer WebSocket Protocol — v6
+# Macpardy! Buzzer WebSocket Protocol — v7
 
 All WebSocket messages are JSON objects with a required top-level `type` string field
 and an optional `payload` object. Unknown `type` values should be silently ignored by
@@ -30,14 +30,14 @@ and closes the connection.
 ```json
 {
   "type": "join",
-  "version": 6,
+  "version": 7,
   "code": "AB3XYZ"
 }
 ```
 
 | Field     | Type   | Description                                              |
 |-----------|--------|----------------------------------------------------------|
-| `version` | int    | Required. Protocol version the client speaks. Currently always `6`. A missing version is not decodable and the message is ignored. |
+| `version` | int    | Required. Protocol version the client speaks. Currently always `7`. A missing version is not decodable and the message is ignored. |
 | `code`    | string | The 6-character join code ("Game PIN") shown on the host's screen. |
 
 ---
@@ -92,6 +92,23 @@ Answered with `wagerLocked` or `wagerRejected`.
 
 ---
 
+### `submitAnswer`
+
+A Final Macpardy answer. Only valid after a successful `claim` and while answering is
+open (the Final clue is up). Every team can answer, including teams excluded from
+wagering. The latest valid submission counts, so a team can change its answer until the
+host reveals the correct response. Answered with `answerSaved` or `answerRejected`.
+
+```json
+{ "type": "submitAnswer", "answer": "What is Paris?" }
+```
+
+| Field    | Type   | Description |
+|----------|--------|-------------|
+| `answer` | string | The answer. The server trims it and folds line breaks into spaces; at most `maxLength` characters (200) after that. |
+
+---
+
 ## Server → Client messages
 
 These messages are sent by the Macpardy app to one or all phone browsers.
@@ -104,7 +121,7 @@ Sent to the joining phone after a valid join code is received.
 {
   "type": "joinAccepted",
   "payload": {
-    "version": 6,
+    "version": 7,
     "teams": [
       { "id": "6F9619FF-8B86-D011-B42D-00C04FC964FF", "name": "Team 1", "color": "blue", "claimed": false }
     ]
@@ -114,7 +131,7 @@ Sent to the joining phone after a valid join code is received.
 
 | Payload field | Type     | Description                                                     |
 |---------------|----------|-----------------------------------------------------------------|
-| `version`     | int      | Protocol version the server is speaking. Currently always `6`.  |
+| `version`     | int      | Protocol version the server is speaking. Currently always `7`.  |
 | `teams`       | object[] | Teams in display order (at most 4). `claimed` is true while a phone holds the team; the phone disables that team's Join button. `color` is one of `blue`, `red`, `green`, `yellow`, `purple`, `orange`. |
 
 ---
@@ -453,6 +470,58 @@ Wagering is over; the phone returns to the buzzer.
 
 ---
 
+## Final Macpardy answers
+
+Answering is open while the Final clue is displayed, locked (read-only) once the host
+reveals the correct response, and closed everywhere else. A team's answer is only sent
+to that team's own phone; the host sees every answer on the Control window and can show
+one team's answer and wager at a time on the Display.
+
+### `answerInfo`
+
+Sent to a single phone when answering opens, when it locks, and after `claimAccepted`
+while it is open or locked.
+
+```json
+{ "type": "answerInfo", "payload": { "open": true, "maxLength": 200, "answer": "What is Paris?" } }
+```
+
+| Field       | Type   | Description                                                         |
+|-------------|--------|---------------------------------------------------------------------|
+| `open`      | bool   | True while the team can submit or change its answer; false once locked. |
+| `maxLength` | int    | Longest answer accepted, in characters.                             |
+| `answer`    | string | Present only if the team has saved an answer (e.g. after a reconnect). |
+
+When it opens, the phone fills its answer field from `answer`; later `answerInfo`
+messages leave whatever the player is typing alone.
+
+### `answerSaved`
+
+The answer was saved. The phone can still change it while answering is open.
+
+```json
+{ "type": "answerSaved", "payload": { "answer": "What is Paris?" } }
+```
+
+### `answerRejected`
+
+A `submitAnswer` was refused; the team's previous answer (if any) still stands.
+`reason` is one of `notOpen`, `empty`, `tooLong`.
+
+```json
+{ "type": "answerRejected", "payload": { "reason": "notOpen" } }
+```
+
+### `answerClosed`
+
+Final answering is over (the host left the Final); the phone returns to the buzzer.
+
+```json
+{ "type": "answerClosed" }
+```
+
+---
+
 ## Version history
 
 | Version | Changes                          |
@@ -463,6 +532,7 @@ Wagering is over; the phone returns to the buzzer.
 | 4       | Issue #31. Adds `submitWager`, `wagerInfo`, `wagerLocked`, `wagerRejected` and `wagerClosed`. |
 | 5       | Issue #59. Adds `responseTimer` and `responseTimerStopped`. |
 | 6       | Issue #61. Adds `sessionEnded` and `joinRejected.code`. The page asks for a Game PIN when opened without `?code=` and no longer reconnects on its own. |
+| 7       | Issue #80. Adds `submitAnswer`, `answerInfo`, `answerSaved`, `answerRejected` and `answerClosed`. A page left open from an older version is told to reload, since it couldn't answer. |
 
 ## Port
 

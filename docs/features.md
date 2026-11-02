@@ -116,7 +116,7 @@ each team's phone status with **Remove phone**. The Display window, opened with
 | **Question** | Clue as a big tile, correct response (host only) with **Reveal Answer**, who buzzed first with their response timer (5 s by default) (or the Daily Double team and wager), question timer ring (15 s by default; start/pause/reset/±5 s), ✓/✗ score buttons on each team card (only the Daily Double team's on a Daily Double), **Return to Board** in the toolbar | Clue (and picture, if any), timer; response-timer dots above the answering team's score |
 | **Answer** | Same screen, answer revealed; score buttons, **Return to Board** | Correct response |
 | **Final – Category** | Watch each team's wager status, enter or edit wagers, **Reveal Question** | Final category |
-| **Final – Question / Answer** | Reveal answer, adjust scores, **Complete Game** | Final clue, then response |
+| **Final – Question / Answer** | Each team's wager and the answer typed on its phone, reveal answer, adjust scores; after the reveal, **Show on Display** puts one team's answer and wager on screen (tap again to hide), **Complete Game** | Final clue, then response, with the spotlighted team's answer and wager |
 
 Scoring rules the app applies:
 - Each team gets **correct / wrong** buttons for the clue's value (or its Daily Double or
@@ -157,6 +157,12 @@ A game works without phones. When the game starts, the app serves a page on the 
 - **Final Macpardy:** while the category is shown, each eligible phone gets a wager screen
   with its max (its score). Only the first submission counts; after that only the host can
   change it. Excluded teams are told they can't win points.
+- **Final answers:** while the Final clue is shown, every phone (excluded teams too) gets an
+  answer box. **Send answer** (or Enter) saves it; the team can change it until the host
+  reveals the correct response, when it locks and the phone shows what was sent. Answers
+  are trimmed to one line, at most 200 characters. Only the host sees them until they show
+  one on the Display. Teams that never had a phone get no answer row, so games without
+  buzzers look as before.
 - **Connection:** a phone that stops answering for 5 s counts as disconnected; the Control
   and Display windows flag the team. The phone goes back to the Game PIN screen with its PIN
   filled in and a dismissible "Unable to find client" toast; tapping **Join** rejoins. It

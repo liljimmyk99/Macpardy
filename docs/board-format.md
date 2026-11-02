@@ -43,6 +43,10 @@ control, or phone buzzer screens).
 The auto-saved game (`Application Support/Macpardy/saved_game.json`) embeds image bytes
 (base64), so resuming works even if the original board file was moved or deleted.
 
+Final answers typed on phones (`finalMacpardyAnswers`, team id → answer) and the team shown
+on the Display (`finalMacpardyRevealedTeamID`) are saved too. Both are optional, so saves
+from before they existed still load; `GameSnapshot.currentSchemaVersion` is unchanged.
+
 ## Boards imported from CSV
 
 Games imported from CSV (see [csv-import.md](csv-import.md)) are saved as a plain `.json` file

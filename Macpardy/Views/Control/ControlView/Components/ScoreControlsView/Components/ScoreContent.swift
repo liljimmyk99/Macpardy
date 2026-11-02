@@ -52,10 +52,64 @@ extension ScoreControlsView {
                 scoreButton(title: "control.score.button.correct_wager \(wager)", for: team, amount: wager, isCorrect: true)
                 scoreButton(title: "control.score.button.wrong_wager \(wager)", for: team, amount: -wager, isCorrect: false)
             }
+
+            if showsFinalAnswer(for: team) {
+                finalAnswerRow(for: team)
+            }
         }
         .padding(10)
         .background(Color(nsColor: .controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    /// Only teams playing with a phone (or that already sent an answer) get an
+    /// answer row, so a game without buzzers looks as it did before.
+    func showsFinalAnswer(for team: Team) -> Bool {
+        gameState.finalMacpardyAnswers[team.id] != nil
+            || buzzerState.claimedTeamIDs.contains(team.id)
+            || buzzerState.disconnectedTeamIDs.contains(team.id)
+    }
+
+    /// The answer the team typed on its phone (#80). Once the correct response
+    /// is revealed, the host can put it on the Display, one team at a time.
+    func finalAnswerRow(for team: Team) -> some View {
+        let answer = gameState.finalMacpardyAnswers[team.id]
+        let isRevealed = gameState.finalMacpardyRevealedTeamID == team.id
+        let revealTitle: LocalizedStringKey = isRevealed
+            ? "control.score.button.hide_fj_answer"
+            : "control.score.button.show_fj_answer"
+        return HStack(spacing: 8) {
+            Image(systemName: "text.bubble.fill")
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+
+            Group {
+                if let answer {
+                    Text(verbatim: answer)
+                        .fontWeight(.semibold)
+                        .textSelection(.enabled)
+                } else if gameState.phase == .finalMacpardyQuestion {
+                    Text("control.score.fj_answer.waiting")
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("control.score.fj_answer.none")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .lineLimit(2)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            if gameState.phase == .finalMacpardyAnswer {
+                Button {
+                    gameState.revealFinalAnswer(teamID: isRevealed ? nil : team.id)
+                } label: {
+                    Label(revealTitle, systemImage: isRevealed ? "eye.slash.fill" : "tv.fill")
+                }
+                .buttonStyle(.bordered)
+                .tint(isRevealed ? MacpardyTheme.gold : nil)
+            }
+        }
+        .font(.callout)
     }
 
     func standardTeamControls(for team: Team) -> some View {

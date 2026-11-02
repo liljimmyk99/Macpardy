@@ -49,6 +49,9 @@ final class BuzzerState {
     /// Called on the main actor when a phone submits a valid Final wager.
     var onWagerSubmitted: ((WagerSubmission) -> Void)?
 
+    /// Called on the main actor when a phone saves a Final answer.
+    var onAnswerSubmitted: ((AnswerSubmission) -> Void)?
+
     /// Whether the toolbar's Buzzers popover is open. Lives here so the Game menu can open it.
     var isPopoverPresented = false
 
@@ -57,6 +60,9 @@ final class BuzzerState {
     private var wagerObserverTask: Task<Void, Never>?
     private var wageringLimits: [UUID: Int]?
     private var wageringWagers: [UUID: Int] = [:]
+    private var answerObserverTask: Task<Void, Never>?
+    private var answeringWindow: FinalAnswerWindow = .closed
+    private var answeringAnswers: [UUID: String] = [:]
 
     private var latestScores: [UUID: Int] = [:]
     private var latestMode: BuzzerMode = .disabled
@@ -128,6 +134,16 @@ final class BuzzerState {
         await server?.setWager(teamID: teamID, amount: amount)
     }
 
+    // MARK: - Final Macpardy answers
+
+    /// Opens (Final clue up), locks (correct response revealed) or closes Final
+    /// answering on the phones. `answers` are the answers already stored in the game.
+    func setAnswering(_ window: FinalAnswerWindow, answers: [UUID: String]) async {
+        answeringWindow = window
+        answeringAnswers = window == .closed ? [:] : answers
+        await server?.setAnswering(window, answers: answers)
+    }
+
     /// Frees a team's slot and disconnects its phone with "Removed by host".
     func removePhone(forTeam teamID: UUID) async {
         await server?.removePhone(forTeam: teamID)
@@ -174,12 +190,21 @@ final class BuzzerState {
             if let limits = wageringLimits {
                 await newServer.openWagering(limits: limits, wagers: wageringWagers)
             }
+            await newServer.setAnswering(answeringWindow, answers: answeringAnswers)
 
             wagerObserverTask = Task { [weak self, stream = newServer.wagerStream] in
                 for await submission in stream {
                     guard let self else { return }
                     self.wageringWagers[submission.teamID] = submission.amount
                     self.onWagerSubmitted?(submission)
+                }
+            }
+
+            answerObserverTask = Task { [weak self, stream = newServer.answerStream] in
+                for await submission in stream {
+                    guard let self else { return }
+                    self.answeringAnswers[submission.teamID] = submission.answer
+                    self.onAnswerSubmitted?(submission)
                 }
             }
 
@@ -233,6 +258,8 @@ final class BuzzerState {
         firstBuzzObserverTask = nil
         wagerObserverTask?.cancel()
         wagerObserverTask = nil
+        answerObserverTask?.cancel()
+        answerObserverTask = nil
         firstBuzzTeamID = nil
         await server?.stop()
         server = nil

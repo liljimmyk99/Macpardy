@@ -69,6 +69,7 @@ Macpardy/
 │       ├── BuzzTieResolver.swift     Picks the winner of near-simultaneous buzzes
 │       ├── TeamClaimRegistry.swift   Which phone holds which team
 │       ├── FinalWagerBook.swift      Final Macpardy wager limits and submissions
+│       ├── FinalAnswerBook.swift     Final Macpardy answers typed on phones (open / locked)
 │       ├── AttemptRateLimiter.swift  Join-code / claim rate limiting
 │       ├── JoinCodeGenerator.swift   6-char codes without look-alike characters
 │       ├── QRCodeGenerator.swift     Join URL → QR image
@@ -112,7 +113,7 @@ ControlView/
     │   ├── DailyDoubleControlView/   Team picker, wager input, quick wagers
     │   ├── FinalMacpardyCategoryControlView/  Wager status per team
     │   └── FinalMacpardyControlView/ Final clue/answer, Complete Game
-    ├── ScoreControlsView/        Final Macpardy correct / wrong buttons per team
+    ├── ScoreControlsView/        Correct / wrong buttons per team; Final answers + Show on Display
     └── TimerControlsView/        Countdown ring; start/pause, reset, ±5 s
 ```
 
@@ -144,6 +145,7 @@ One `<Type>Tests.swift` per type under test:
 | `BuzzerEngineTests`, `BuzzTieResolverTests` | Buzz rules and tie-breaking |
 | `TeamClaimRegistryTests`, `AttemptRateLimiterTests` | Team claims, rate limits |
 | `FinalWagerBookTests`, `FinalWagerDefaultsTests` | Final Macpardy wagers |
+| `FinalAnswerBookTests`, `FinalAnswerGameStateTests` | Final Macpardy answers from phones, Display spotlight |
 | `BuzzerProtocolTests`, `WebSocketFrameParserTests` | Wire messages and frames |
 | `TestImages` | Helper for building image fixtures |
 

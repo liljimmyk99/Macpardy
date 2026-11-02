@@ -3,9 +3,14 @@ import SwiftUI
 struct FinalMacpardyView: View {
 
     @Environment(GameState.self) var gameState
+    @Environment(\.animationsEnabled) var animationsEnabled
 
     var body: some View {
         finalMacpardyContent()
+            .animation(
+                animationsEnabled ? MacpardyMotion.quick : nil,
+                value: gameState.finalMacpardyRevealedTeamID
+            )
     }
 }
 

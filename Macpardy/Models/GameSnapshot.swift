@@ -19,6 +19,10 @@ struct GameSnapshot: Codable, Equatable, Sendable {
     let dailyDoubleTeamID: UUID?
     let dailyDoubleWager: Int
     let finalMacpardyWagers: [UUID: Int]
+    /// Final answers from phones (#80). Optional so saves from before it load.
+    let finalMacpardyAnswers: [UUID: String]?
+    /// The team whose Final answer the Display is showing (#80). Optional, as above.
+    let finalMacpardyRevealedTeamID: UUID?
 
     init(
         schemaVersion: Int = GameSnapshot.currentSchemaVersion,
@@ -29,7 +33,9 @@ struct GameSnapshot: Codable, Equatable, Sendable {
         currentCategoryTitle: String? = nil,
         dailyDoubleTeamID: UUID? = nil,
         dailyDoubleWager: Int = 0,
-        finalMacpardyWagers: [UUID: Int] = [:]
+        finalMacpardyWagers: [UUID: Int] = [:],
+        finalMacpardyAnswers: [UUID: String]? = nil,
+        finalMacpardyRevealedTeamID: UUID? = nil
     ) {
         self.schemaVersion = schemaVersion
         self.savedAt = savedAt
@@ -40,6 +46,8 @@ struct GameSnapshot: Codable, Equatable, Sendable {
         self.dailyDoubleTeamID = dailyDoubleTeamID
         self.dailyDoubleWager = dailyDoubleWager
         self.finalMacpardyWagers = finalMacpardyWagers
+        self.finalMacpardyAnswers = finalMacpardyAnswers
+        self.finalMacpardyRevealedTeamID = finalMacpardyRevealedTeamID
     }
 
     init(from gameState: GameState) {
@@ -52,5 +60,7 @@ struct GameSnapshot: Codable, Equatable, Sendable {
         self.dailyDoubleTeamID = gameState.dailyDoubleTeamID
         self.dailyDoubleWager = gameState.dailyDoubleWager
         self.finalMacpardyWagers = gameState.finalMacpardyWagers
+        self.finalMacpardyAnswers = gameState.finalMacpardyAnswers.isEmpty ? nil : gameState.finalMacpardyAnswers
+        self.finalMacpardyRevealedTeamID = gameState.finalMacpardyRevealedTeamID
     }
 }
