@@ -99,6 +99,15 @@ struct MacpardyApp: App {
         }
     }
 
+    /// Opens Final answering on the phones while the clue is up, locks it once
+    /// the correct response is revealed, and closes it everywhere else (#80).
+    private func syncAnswering() async {
+        await buzzerState.setAnswering(
+            gameState.finalAnswerWindow,
+            answers: gameState.finalMacpardyAnswers
+        )
+    }
+
     /// Starts a game from `boards`, ending the one in progress first: the
     /// buzzer server and sounds stop exactly as when a game is left, then
     /// the server restarts for the new game.
@@ -163,8 +172,12 @@ struct MacpardyApp: App {
                     await buzzerState.syncScores(teamScores)
                     await buzzerState.setMode(buzzerMode)
                     await syncWagering()
+                    await syncAnswering()
                     buzzerState.onWagerSubmitted = { submission in
                         gameState.setFinalWager(teamID: submission.teamID, amount: submission.amount)
+                    }
+                    buzzerState.onAnswerSubmitted = { submission in
+                        gameState.setFinalAnswer(teamID: submission.teamID, answer: submission.answer)
                     }
                     await buzzerState.startServer()
                 }
@@ -206,6 +219,11 @@ struct MacpardyApp: App {
         .onChange(of: gameState.phase) { _, phase in
             Task { await syncWagering() }
             SoundPlayer.shared.handle(phase: phase)
+        }
+        // Answering is open while the Final clue is up and its timer has time
+        // left; it locks when time runs out or the response is revealed.
+        .onChange(of: gameState.finalAnswerWindow) { _, _ in
+            Task { await syncAnswering() }
         }
         .commands {
             FileCommands(coordinator: boardOpenCoordinator)

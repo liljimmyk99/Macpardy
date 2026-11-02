@@ -42,6 +42,11 @@ final class GameState {
 
     // Final Macpardy State
     var finalMacpardyWagers: [UUID: Int] = [:]
+    /// Answers typed on the phones (#80), by team. Missing means no answer.
+    var finalMacpardyAnswers: [UUID: String] = [:]
+    /// The team whose answer and wager the Display is showing, after the
+    /// correct response is revealed. The host shows one team at a time.
+    var finalMacpardyRevealedTeamID: UUID?
 
     /// Where timer lengths are read from (Settings). Tests swap in their own.
     @ObservationIgnored var settings: UserDefaults = .standard
@@ -81,6 +86,8 @@ final class GameState {
         self.dailyDoubleTeamID = snapshot.dailyDoubleTeamID
         self.dailyDoubleWager = snapshot.dailyDoubleWager
         self.finalMacpardyWagers = snapshot.finalMacpardyWagers
+        self.finalMacpardyAnswers = snapshot.finalMacpardyAnswers ?? [:]
+        self.finalMacpardyRevealedTeamID = snapshot.finalMacpardyRevealedTeamID
         self.currentCategoryTitle = snapshot.currentCategoryTitle
         if let qID = snapshot.currentQuestionID,
            snapshot.game.rounds.indices.contains(snapshot.game.currentRound) {
@@ -101,6 +108,8 @@ final class GameState {
         self.dailyDoubleTeamID = snapshot.dailyDoubleTeamID
         self.dailyDoubleWager = snapshot.dailyDoubleWager
         self.finalMacpardyWagers = snapshot.finalMacpardyWagers
+        self.finalMacpardyAnswers = snapshot.finalMacpardyAnswers ?? [:]
+        self.finalMacpardyRevealedTeamID = snapshot.finalMacpardyRevealedTeamID
         self.currentCategoryTitle = snapshot.currentCategoryTitle
         self.currentQuestion = nil
         cancelResponse()
@@ -169,6 +178,7 @@ final class GameState {
         currentCategoryTitle = nil
         dailyDoubleTeamID = nil
         dailyDoubleWager = 0
+        finalMacpardyRevealedTeamID = nil
         triggerSave()
     }
 
@@ -193,8 +203,10 @@ final class GameState {
             currentQuestion = Question(value: 0, clue: "Final Macpardy Clue", response: "Final Macpardy Response")
         }
 
-        // No wagers yet; a missing wager means the team hasn't bet.
+        // No wagers or answers yet; a missing wager means the team hasn't bet.
         finalMacpardyWagers = [:]
+        finalMacpardyAnswers = [:]
+        finalMacpardyRevealedTeamID = nil
         phase = .finalMacpardyCategory
         resetTimer()
         triggerSave()
@@ -245,6 +257,46 @@ final class GameState {
         phase = .finalMacpardyQuestion
         resetTimer()
         triggerSave()
+    }
+
+    // MARK: - Final answers (#80)
+
+    /// Phones can type answers while the Final clue is up and its timer has
+    /// time left. They lock when the timer runs out (and reopen if the host
+    /// adds time or resets it) and stay locked once the correct response is
+    /// revealed. Closed everywhere else.
+    var finalAnswerWindow: FinalAnswerWindow {
+        switch phase {
+        case .finalMacpardyQuestion: timer.isExpired ? .locked : .open
+        case .finalMacpardyAnswer: .locked
+        default: .closed
+        }
+    }
+
+    /// Stores an answer a phone sent. Ignored unless answering is open, so an
+    /// answer that arrives after time runs out doesn't count.
+    func setFinalAnswer(teamID: UUID, answer: String) {
+        guard finalAnswerWindow == .open,
+              game.teams.contains(where: { $0.id == teamID }) else { return }
+        let cleaned = FinalAnswerBook.normalize(answer)
+        guard !cleaned.isEmpty else { return }
+        finalMacpardyAnswers[teamID] = String(cleaned.prefix(FinalAnswerBook.maxLength))
+        triggerSave()
+    }
+
+    /// Shows a team's answer and wager on the Display (nil hides it). Only
+    /// after the correct response is revealed, one team at a time.
+    func revealFinalAnswer(teamID: UUID?) {
+        guard phase == .finalMacpardyAnswer else { return }
+        if let teamID, !game.teams.contains(where: { $0.id == teamID }) { return }
+        finalMacpardyRevealedTeamID = teamID
+        triggerSave()
+    }
+
+    /// The team the Display is spotlighting, if it still exists.
+    var finalMacpardyRevealedTeam: Team? {
+        guard phase == .finalMacpardyAnswer, let id = finalMacpardyRevealedTeamID else { return nil }
+        return game.teams.first(where: { $0.id == id })
     }
 
     func adjustScore(for teamID: UUID, by amount: Int) {
@@ -309,6 +361,8 @@ final class GameState {
         self.dailyDoubleTeamID = nil
         self.dailyDoubleWager = 0
         self.finalMacpardyWagers = [:]
+        self.finalMacpardyAnswers = [:]
+        self.finalMacpardyRevealedTeamID = nil
     }
 
     func addTeam(name: String = "", color: String = "blue") {

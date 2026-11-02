@@ -15,6 +15,10 @@ final class GameTimer {
 
         private(set) var startingTime: TimeInterval
 
+    /// True while the time has run out. Changes only when the timer reaches
+    /// zero or gets time back, so watching it doesn't redraw on every tick.
+    private(set) var isExpired = false
+
     init(seconds: TimeInterval = 15.0) {
             self.startingTime = seconds
             self.remainingTime = seconds
@@ -32,6 +36,7 @@ final class GameTimer {
 
                 if remainingTime <= 0 {
                     remainingTime = 0
+                    updateExpired()
                     // Let the warning's closing tone finish.
                     halt()
                 } else {
@@ -59,11 +64,20 @@ final class GameTimer {
             isWarningSpent = false
             if let seconds { startingTime = seconds }
             remainingTime = startingTime
+            updateExpired()
         }
+
+    /// Sets `isExpired` only when it actually changes, so observers aren't
+    /// notified on every tick.
+    private func updateExpired() {
+        let expired = remainingTime <= 0
+        if expired != isExpired { isExpired = expired }
+    }
 
     func addSeconds(_ amount: Int) {
         let wasExpired = remainingTime <= 0
         remainingTime = max(0, remainingTime + TimeInterval(amount))
+        updateExpired()
         if wasExpired, remainingTime > 0 {
             // Time is back after running out: the warning starts over on the way down.
             stopWarning()

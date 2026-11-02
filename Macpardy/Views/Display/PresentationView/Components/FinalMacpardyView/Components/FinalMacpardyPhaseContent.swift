@@ -16,6 +16,7 @@ extension FinalMacpardyView {
 
         case .finalMacpardyAnswer:
             finalMacpardyAnswer()
+            finalMacpardyTeamReveal()
 
         default:
             EmptyView()

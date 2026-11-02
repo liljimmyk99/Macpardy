@@ -115,6 +115,19 @@ nonisolated enum ServerMessage {
 
     /// The response time ended early (host judged the answer) or was cancelled. Broadcast.
     case responseTimerStopped
+
+    /// The Final answer screen: open for typing, or locked once the correct
+    /// response is revealed. Sent to a single phone.
+    case answerInfo(AnswerInfo)
+
+    /// The team's answer was saved (it can still change it while answering is open).
+    case answerSaved(answer: String)
+
+    /// A submitted answer was refused. The phone stays on the answer screen.
+    case answerRejected(AnswerRejectReason)
+
+    /// Final answering is over; the phone returns to the buzzer.
+    case answerClosed
 }
 
 extension ServerMessage: Encodable {
@@ -201,11 +214,32 @@ extension ServerMessage: Encodable {
 
         case .responseTimerStopped:
             try container.encode("responseTimerStopped", forKey: .type)
+
+        case .answerInfo(let info):
+            try container.encode("answerInfo", forKey: .type)
+            var payload = container.nestedContainer(keyedBy: PayloadKeys.self, forKey: .payload)
+            try payload.encode(info.open, forKey: .open)
+            try payload.encode(info.maxLength, forKey: .maxLength)
+            try payload.encodeIfPresent(info.answer, forKey: .answer)
+
+        case .answerSaved(let answer):
+            try container.encode("answerSaved", forKey: .type)
+            var payload = container.nestedContainer(keyedBy: PayloadKeys.self, forKey: .payload)
+            try payload.encode(answer, forKey: .answer)
+
+        case .answerRejected(let reason):
+            try container.encode("answerRejected", forKey: .type)
+            var payload = container.nestedContainer(keyedBy: PayloadKeys.self, forKey: .payload)
+            try payload.encode(reason, forKey: .reason)
+
+        case .answerClosed:
+            try container.encode("answerClosed", forKey: .type)
         }
     }
 
     private enum PayloadKeys: String, CodingKey {
         case teams, version, reason, phase, teamID, state, eligible, max, wager, remaining, total, code
+        case open, maxLength, answer
     }
 }
 
@@ -228,11 +262,14 @@ nonisolated enum ClientMessage {
 
     /// Final Macpardy wager. Only the first valid submission counts.
     case submitWager(amount: Int)
+
+    /// Final Macpardy answer. The latest submission counts while answering is open.
+    case submitAnswer(answer: String)
 }
 
 extension ClientMessage: Decodable {
     private enum CodingKeys: String, CodingKey {
-        case type, code, version, teamID, amount
+        case type, code, version, teamID, amount, answer
     }
 
     init(from decoder: Decoder) throws {
@@ -251,6 +288,8 @@ extension ClientMessage: Decodable {
             self = .buzz
         case "submitWager":
             self = .submitWager(amount: try container.decode(Int.self, forKey: .amount))
+        case "submitAnswer":
+            self = .submitAnswer(answer: try container.decode(String.self, forKey: .answer))
         default:
             throw DecodingError.dataCorruptedError(
                 forKey: .type,
