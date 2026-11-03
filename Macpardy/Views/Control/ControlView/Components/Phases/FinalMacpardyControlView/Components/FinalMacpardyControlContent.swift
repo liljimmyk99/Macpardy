@@ -76,6 +76,7 @@ extension FinalMacpardyControlView {
                 gameState.revealAnswer()
             }
             .disabled(gameState.phase == .finalMacpardyAnswer)
+            .help(Text("control.question.button.reveal_answer") + Text(verbatim: " (\(AppShortcut.revealAnswer.glyph))"))
 
             Spacer()
         }

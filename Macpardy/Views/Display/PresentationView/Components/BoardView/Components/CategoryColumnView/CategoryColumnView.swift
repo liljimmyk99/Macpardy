@@ -6,6 +6,8 @@ struct CategoryColumnView: View {
     /// The board intro shows titles one by one, then the clues together.
     var isTitleShown = true
     var areCluesShown = true
+    /// The row the host has highlighted on the Control board (#88), if it's in this column.
+    var highlightedRow: Int?
 
     var body: some View {
         VStack(spacing: 4) {

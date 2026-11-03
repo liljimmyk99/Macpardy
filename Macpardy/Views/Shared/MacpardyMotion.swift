@@ -34,6 +34,8 @@ enum MacpardyMotion {
     static let quick = Animation.easeInOut(duration: 0.3)
     static let flip = Animation.easeOut(duration: 0.5)
     static let scorePulse = Animation.easeOut(duration: 0.2)
+    /// The host's arrow-key highlight moving between board tiles.
+    static let tileHighlight = Animation.easeOut(duration: 0.12)
 
     static var categoryAppear: Animation { .spring(duration: 0.6, bounce: 0.35) }
 

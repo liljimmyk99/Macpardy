@@ -7,7 +7,8 @@ extension BoardView {
                 CategoryColumnView(
                     category: category,
                     isTitleShown: index < reveal.categoriesShown,
-                    areCluesShown: reveal.cluesShown
+                    areCluesShown: reveal.cluesShown,
+                    highlightedRow: gameState.highlightedTile.flatMap { $0.column == index ? $0.row : nil }
                 )
             }
         }
