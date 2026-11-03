@@ -30,7 +30,9 @@ struct GameCommandAvailability: Equatable {
         hasSelectedGame && (phase == .question || phase == .finalMacpardyQuestion || phase == .finalMacpardyAnswer)
     }
 
-    var canShowDisplay: Bool { hasSelectedGame }
+    /// Before a game is picked the Display shows a waiting screen, so the
+    /// host can put it on the TV early.
+    var canShowDisplay: Bool { true }
 
     var canOpenBuzzers: Bool { hasSelectedGame && buzzersEnabled }
 }

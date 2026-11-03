@@ -17,12 +17,7 @@ extension FinalMacpardyControlView {
 
             if gameState.phase == .finalMacpardyAnswer {
                 Button(role: .destructive) {
-                    Task {
-                        await GameSaveStore.shared.clear()
-                        // A finished game ends the session: new join code, phones dropped.
-                        await buzzerState.startServer()
-                    }
-                    gameState.phase = .setup
+                    completeGame()
                 } label: {
                     Label("control.final_macpardy.button.complete_game", systemImage: "flag.checkered.circle.fill")
                 }

@@ -34,7 +34,7 @@ Defined in `App/MacpardyApp.swift`:
 | Window id | Default | Content |
 |---|---|---|
 | `control` | Opens at launch | `LaunchScreenView` until a game is chosen (`hasSelectedGame`), then `ControlView` |
-| `display` | Suppressed; opened from the board screen | `PresentationView`, only when a game is loaded |
+| `display` | Suppressed; opened with Show Display (⌘D), also from the launch screen | `PresentationView` while a game is loaded, otherwise `WaitingForGameView` |
 | `create-macpardy` | Suppressed; opened from New Game / Edit | `CreateMacpardyGameView` |
 | `shortcuts` | Suppressed; Help > Keyboard Shortcuts | `KeyboardShortcutsView` |
 | `logs` | Suppressed; Help > Show Logs, Buzzers popover > View Logs | `LogsView` (see [Logging](#logging)) |
@@ -128,8 +128,13 @@ stored next to the boards, not on them (see [board-format.md](board-format.md)).
  board ──advanceRound (next is Final)──▶ finalMacpardyCategory  (phones wager)
         ──revealFinalMacpardyQuestion──▶ finalMacpardyQuestion  (phones answer)
         ──revealAnswer──▶ finalMacpardyAnswer  (answers locked; host spotlights teams)
-        ──Complete Game──▶ setup
+        ──Complete Game──▶ endGame() → setup, then back to the launch screen
 ```
+
+**Complete Game** goes through the `\.completeGame` environment action that `MacpardyApp`
+gives the Control window: `GameState.endGame()` (stops timers, cancels a pending save,
+returns to `setup`), `hasSelectedGame = false`, then the save is cleared. With no game
+selected the Display window shows `WaitingForGameView` instead of `PresentationView`.
 
 Both the Control detail pane (`ControlView+Extension`, `ControlViewContent`) and the Display
 (`PresentationView+Extension.phaseContent`) switch on `phase`. Adding a phase means updating
@@ -193,9 +198,9 @@ Code: `Services/Buzzer/`. Protocol: [buzzer-protocol.md](buzzer-protocol.md).
 ```
 
 - **Server lifecycle:** started when a game is selected, stopped when the app returns to the
-  launch screen, restarted (new join code) on Complete Game or resume. `startServer()` does
-  nothing while `AppSettings.buzzersEnabled()` is off, and `MacpardyApp` starts / stops the
-  server when the setting changes during a game. Stopping sends
+  launch screen (including after Complete Game), restarted (new join code) on resume.
+  `startServer()` does nothing while `AppSettings.buzzersEnabled()` is off, and `MacpardyApp`
+  starts / stops the server when the setting changes during a game. Stopping sends
   `sessionEnded` to joined phones first so they return to their Game PIN screen.
   `BuzzerState` resolves the Mac's local IPv4 address and builds the bare page address
   (`baseURL`, shown as text) and the join link with `?code=` (`serverURL`, QR code and Copy).

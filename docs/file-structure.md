@@ -29,7 +29,8 @@ Generated and ignored: `Macpardy.xcodeproj`, `Macpardy.xcworkspace`, `Derived/`,
 ```
 Macpardy/
 ├── App/
-│   └── MacpardyApp.swift        @main app, windows, app delegate, GameState ⇄ buzzer wiring
+│   ├── MacpardyApp.swift        @main app, windows, app delegate, GameState ⇄ buzzer wiring
+│   └── CompleteGameAction.swift  `\.completeGame` environment action (Complete Game → launch screen)
 ├── Models/                       Game data and app-wide observable state (BoardDefaults: new-board content)
 │   ├── Game.swift                rounds + currentRound + teams
 │   ├── MacpardyBoard.swift       one round: title, round kind, categories (+ sample board)
@@ -97,8 +98,9 @@ Macpardy/
 │   │   │   └── Components/              Draft board, tiles, question/image editors, titles
 │   │   └── NewGameView/              New Game sheet: editor or CSV import
 │   ├── Display/
-│   │   └── PresentationView/     TV/projector screen (animated, see MacpardyMotion): board, question, answer, Daily
-│   │                             Double, Final, timer, scoreboard
+│   │   ├── PresentationView/     TV/projector screen (animated, see MacpardyMotion): board, question, answer, Daily
+│   │   │                         Double, Final, timer, scoreboard
+│   │   └── WaitingForGameView/   Display screen while no game is selected
 │   ├── Logs/
 │   │   └── LogsView/             Logs window: run / category / level / team filters, search,
 │   │                             follow-latest list, Export Logs… (Models/LogFilter.swift)
@@ -159,6 +161,7 @@ One `<Type>Tests.swift` per type under test:
 | `ImageImporterTests` | Formats, size limits, downscaling, re-encoding |
 | `QuestionImageAutoSaveTests` | Images embedded in auto-saves |
 | `SessionLifecycleTests` | Auto-save / resume / buzzer session lifecycle |
+| `GameStateEndGameTests` | Complete Game: back to setup, timers stopped, no more saves |
 | `BuzzerEngineTests`, `BuzzTieResolverTests` | Buzz rules and tie-breaking |
 | `TeamClaimRegistryTests`, `AttemptRateLimiterTests` | Team claims, rate limits |
 | `FinalWagerBookTests`, `FinalWagerDefaultsTests` | Final Macpardy wagers |
