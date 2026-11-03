@@ -97,7 +97,7 @@ A sheet with two options:
 ## 3. Running a game (Control + Display)
 
 The Control window uses the Display's board look. Its toolbar shows the round title and
-progress, a **Buzzers** button, **Show Display**, and on the board **Final Macpardy** and
+progress, a **Buzzers** button (hidden when buzzers are off in Settings), **Show Display**, and on the board **Final Macpardy** and
 **Next Round**. On the board phase the host picks clues from a copy of the Display board; Daily
 Doubles (a gold **DD** badge) and clues with pictures are marked for the host only. Team scores
 run along the bottom with ±100 buttons (right-click a team to reset its score).
@@ -110,7 +110,7 @@ each team's phone status with **Remove phone**. The Display window, opened with
 
 | Phase | Host (Control) | Display |
 |---|---|---|
-| **Setup** | Team cards (max 4): rename, pick a color swatch, remove, **Add Team**; buzzer panel with QR code, Game PIN, page address, and how many teams have a phone; **Start Game** | Buzzer QR code, page address, and Game PIN, with a card per team showing **Connected** / **Not connected**; "Waiting to start game…" if the buzzer server isn't running |
+| **Setup** | Team cards (max 4): rename, pick a color swatch, remove, **Add Team**; buzzer panel with QR code, Game PIN, page address, and how many teams have a phone; **Start Game**. With buzzers off: no phone status, and the panel just says buzzers are off | Buzzer QR code, page address, and Game PIN, with a card per team showing **Connected** / **Not connected**; "Waiting to start game…" if the buzzer server isn't running. With buzzers off: a card per team with its name only |
 | **Board** | Pick a clue from the board; **Next Round**; show/hide the Display window | The board, played tiles blanked |
 | **Daily Double** | Pick the team and wager (quick-wager buttons), **Show Question** | Daily Double splash |
 | **Question** | Clue as a big tile, correct response (host only) with **Reveal Answer**, who buzzed first with their response timer (5 s by default) (or the Daily Double team and wager), question timer ring (15 s by default; start/pause/reset/±5 s), ✓/✗ score buttons on each team card (only the Daily Double team's on a Daily Double), **Return to Board** in the toolbar | Clue (and picture, if any), timer; response-timer dots above the answering team's score |
@@ -141,6 +141,12 @@ toolbar's **Sound** menu turns effects and music off. See [sounds.md](sounds.md)
 ## 4. Phone buzzers (optional)
 
 A game works without phones. When the game starts, the app serves a page on the local network.
+
+- **No buzzers (#74):** turn off **Use phone buzzers** in **Settings > Buzzers** to play with
+  no phones or Wi-Fi. The server never starts, so there's no Game PIN, QR code or page
+  address; setup only asks for team names and colors, the Buzzers toolbar button and ⌘⇧B are
+  gone, and teams answer out loud. Turning it off mid-game drops any joined phones; turning it
+  back on starts a new session with a new Game PIN.
 
 - **Joining:** scan the QR code (joins straight away), or open the page address shown on the
   Display and type the 6-character **Game PIN**; then pick a team. One phone per team; a
@@ -226,7 +232,8 @@ are remembered (`UserDefaults`, keys in `AppSettings`).
   settings apply to games started afterwards.
 - **Display:** animations on or off (default on). They are also off whenever macOS
   **Reduce Motion** is on.
-- **Buzzers:** server port (1024–65535, default 8472), applied the next time the server starts.
+- **Buzzers:** **Use phone buzzers** (default on; off plays without phones, see §4), applied
+  right away; server port (1024–65535, default 8472), applied the next time the server starts.
 
 ## 6c. Display animations
 
@@ -291,7 +298,7 @@ while the editor is up. Every shortcut is defined once in
 | Any window | ⌘, | Open **Settings** |
 | Any window | ⌘/ | Open **Keyboard Shortcuts** |
 | Any window | ⌥⌘L | Open **Logs** |
-| Control, any phase in a game | ⌘⇧B | Open the **Buzzers** popover |
+| Control, any phase in a game (buzzers on) | ⌘⇧B | Open the **Buzzers** popover |
 | Control, any phase in a game | ⌘D | **Show Display** |
 | Control, Board | ⌘F | **Final Macpardy** |
 | Control, Board | ⌘→ | **Next Round** |

@@ -19,8 +19,10 @@ extension ControlView {
             }
         }
 
-        ToolbarItem(placement: .primaryAction) {
-            BuzzerStatusButton()
+        if commandAvailability.canOpenBuzzers {
+            ToolbarItem(placement: .primaryAction) {
+                BuzzerStatusButton()
+            }
         }
 
         ToolbarItem(placement: .primaryAction) {

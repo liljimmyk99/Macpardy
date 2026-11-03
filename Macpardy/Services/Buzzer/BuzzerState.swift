@@ -154,11 +154,18 @@ final class BuzzerState {
 
     /// Generates a new join code, resolves the local IP, and starts the server.
     /// Safe to call from a `Task { }` in a `.task` or `.onChange` modifier.
+    /// Does nothing (beyond stopping a running server) while buzzers are
+    /// turned off in Settings.
     func startServer() async {
         // Stop any existing server first.
         await stopServer()
 
         startError = nil
+
+        guard AppSettings.buzzersEnabled() else {
+            AppLogger.buzzer.info("Buzzer server not started: buzzers are turned off in Settings")
+            return
+        }
 
         // Resolve local IP before starting so the URL is ready immediately.
         let addresses = LocalNetworkInterfaces.current()

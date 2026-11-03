@@ -12,7 +12,8 @@ can buzz in from their phones over the local network. No accounts, no server, no
 - Open, edit, and re-save existing games (`.macpardy` packages, `.json`, `.csv`)
 - Separate host and audience windows, with timer, scores, Daily Double and Final wagers
 - Phone buzzers: scan a QR code, pick a team, buzz; fair tie-breaking, a 5 s response timer and wrong-answer lockout;
-  Final wagers and answers typed on the phone, with each team's answer shown on the Display
+  Final wagers and answers typed on the phone, with each team's answer shown on the Display;
+  or turn buzzers off in Settings to play with no phones or Wi-Fi
 - Display animations (board intro, clue flips, Daily Double, score changes), switchable in Settings
 - Auto-save, so a game can be resumed after a quit or crash
 
@@ -26,12 +27,12 @@ Full walkthrough: [docs/features.md](docs/features.md).
 | ⌘S | Editor: **Save Game** |
 | ⌘T | Start / pause the timer |
 | ⌘R | **Reveal Answer** |
-| ⌘, | **Settings** (sound, timers, starting teams, buzzer port) |
+| ⌘, | **Settings** (sound, timers, starting teams, buzzers on/off and port) |
 | ⌘/ | **Keyboard Shortcuts** window (also the keyboard button in the Control toolbar) |
 | ⌥⌘L | **Logs** window: why phones dropped, with **Export Logs…** |
 | ⌘D | **Show Display** |
 | ⌘B | **Return to Board** (on a clue) |
-| ⌘⇧B | **Buzzers** popover |
+| ⌘⇧B | **Buzzers** popover (when buzzers are on) |
 | ⌘F | **Final Macpardy** (from the board) |
 | ⌘→ | **Next Round** (from the board) |
 | ⌘← | Reset the timer |

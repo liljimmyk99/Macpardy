@@ -12,6 +12,7 @@ struct ControlView: View {
     @Environment(\.openWindow) var openWindow
     @Environment(GameState.self) var gameState
     @Environment(\.undoManager) var undoManager
+    @AppStorage(AppSettings.Key.buzzersEnabled) var buzzersEnabled = AppSettings.defaultBuzzersEnabled
 
     var body: some View {
         VStack(spacing: 0) {

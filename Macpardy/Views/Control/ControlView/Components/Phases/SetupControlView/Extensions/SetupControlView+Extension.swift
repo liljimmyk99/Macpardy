@@ -86,6 +86,25 @@ extension SetupControlView {
         }
     }
 
+    /// Shown in place of the join info when buzzers are turned off in Settings.
+    func buzzersOffNotice() -> some View {
+        VStack(spacing: 12) {
+            Image(systemName: "iphone.slash")
+                .font(.system(size: 40, weight: .semibold))
+                .foregroundStyle(MacpardyTheme.mutedText)
+            Text("control.setup.no_buzzers.message")
+                .font(.headline)
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
+            Text("control.setup.no_buzzers.hint")
+                .font(.callout)
+                .foregroundStyle(MacpardyTheme.mutedText)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 24)
+    }
+
     func startGameButton() -> some View {
         Button {
             gameState.startGame()

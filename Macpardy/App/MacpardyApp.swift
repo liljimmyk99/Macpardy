@@ -82,6 +82,9 @@ struct MacpardyApp: App {
     @State
     private var boardOpenCoordinator = BoardOpenCoordinator()
 
+    @AppStorage(AppSettings.Key.buzzersEnabled)
+    private var buzzersEnabled = AppSettings.defaultBuzzersEnabled
+
     init() {
         LogCenter.shared.start()
         AppLogger.control.info("\(SystemInfoReport.appDescription) launched on \(SystemInfoReport.osDescription)")
@@ -222,6 +225,17 @@ struct MacpardyApp: App {
             editorSession.boardsToPlay = nil
             playEditedBoards(boards)
         }
+        // Turning buzzers off mid-game drops the phones; turning them on starts a fresh session (#74).
+        .onChange(of: buzzersEnabled) { _, enabled in
+            guard hasSelectedGame else { return }
+            Task {
+                if enabled {
+                    await buzzerState.startServer()
+                } else {
+                    await buzzerState.stopServer()
+                }
+            }
+        }
         .onChange(of: buzzerMode) { _, mode in
             Task { await buzzerState.setMode(mode) }
         }
@@ -246,7 +260,12 @@ struct MacpardyApp: App {
         .commands {
             FileCommands(coordinator: boardOpenCoordinator)
             HelpCommands()
-            GameCommands(gameState: gameState, buzzerState: buzzerState, hasSelectedGame: hasSelectedGame)
+            GameCommands(
+                gameState: gameState,
+                buzzerState: buzzerState,
+                hasSelectedGame: hasSelectedGame,
+                buzzersEnabled: buzzersEnabled
+            )
         }
 
         Window("Display", id: "display") {

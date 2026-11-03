@@ -10,7 +10,7 @@ import SwiftUI
 extension ControlView {
     /// What the Game menu and the toolbar offer in the current phase.
     var commandAvailability: GameCommandAvailability {
-        GameCommandAvailability(phase: gameState.phase, hasSelectedGame: true)
+        GameCommandAvailability(phase: gameState.phase, hasSelectedGame: true, buzzersEnabled: buzzersEnabled)
     }
 
     /// The current round's title, e.g. "General Categories".

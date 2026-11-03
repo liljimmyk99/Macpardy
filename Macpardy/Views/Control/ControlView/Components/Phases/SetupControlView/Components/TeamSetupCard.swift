@@ -2,7 +2,8 @@
 //  TeamSetupCard.swift
 //  Macpardy
 //
-//  One team on the setup screen: name, color swatches, phone status, remove.
+//  One team on the setup screen: name, color swatches, phone status (when
+//  buzzers are on), remove.
 //
 
 import SwiftUI
@@ -11,6 +12,7 @@ struct TeamSetupCard: View {
 
     @Environment(GameState.self) var gameState
     @Environment(BuzzerState.self) var buzzerState
+    @AppStorage(AppSettings.Key.buzzersEnabled) private var buzzersEnabled = AppSettings.defaultBuzzersEnabled
 
     let team: Team
 
@@ -54,9 +56,11 @@ struct TeamSetupCard: View {
             Spacer(minLength: 0)
 
             HStack(spacing: 8) {
-                phoneStatus
+                if buzzersEnabled {
+                    phoneStatus
+                }
                 Spacer()
-                if buzzerState.claimedTeamIDs.contains(team.id) {
+                if buzzersEnabled, buzzerState.claimedTeamIDs.contains(team.id) {
                     Button("control.team.remove_phone") {
                         Task { await buzzerState.removePhone(forTeam: team.id) }
                     }

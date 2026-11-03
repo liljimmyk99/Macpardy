@@ -13,11 +13,12 @@ struct GameCommands: Commands {
     let gameState: GameState
     let buzzerState: BuzzerState
     let hasSelectedGame: Bool
+    let buzzersEnabled: Bool
 
     @Environment(\.openWindow) private var openWindow
 
     private var availability: GameCommandAvailability {
-        GameCommandAvailability(phase: gameState.phase, hasSelectedGame: hasSelectedGame)
+        GameCommandAvailability(phase: gameState.phase, hasSelectedGame: hasSelectedGame, buzzersEnabled: buzzersEnabled)
     }
 
     var body: some Commands {

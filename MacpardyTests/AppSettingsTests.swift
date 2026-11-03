@@ -68,6 +68,12 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertEqual(AppSettings.buzzerPort(defaults), 9000)
     }
 
+    func testBuzzersDefaultOnAndCanBeTurnedOff() {
+        XCTAssertTrue(AppSettings.buzzersEnabled(defaults))
+        defaults.set(false, forKey: AppSettings.Key.buzzersEnabled)
+        XCTAssertFalse(AppSettings.buzzersEnabled(defaults))
+    }
+
     func testAnimationsDefaultOnAndCanBeTurnedOff() {
         XCTAssertTrue(AppSettings.animationsEnabled(defaults))
         defaults.set(false, forKey: AppSettings.Key.animationsEnabled)
