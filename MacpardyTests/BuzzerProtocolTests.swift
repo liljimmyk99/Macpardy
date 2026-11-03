@@ -21,17 +21,41 @@ final class BuzzerProtocolTests: XCTestCase {
     func testJoinMessageDecodes() throws {
         let json = Data(#"{"type":"join","version":1,"code":"AB3XYZ"}"#.utf8)
         let message = try JSONDecoder().decode(ClientMessage.self, from: json)
-        guard case .join(let code, let version, let diag) = message else { return XCTFail("expected join") }
+        guard case .join(let code, let version, let diag, let device) = message else { return XCTFail("expected join") }
         XCTAssertEqual(code, "AB3XYZ")
         XCTAssertEqual(version, 1)
         XCTAssertNil(diag)
+        XCTAssertNil(device)
+    }
+
+    // MARK: - Device id (#84)
+
+    private func decodeDevice(_ deviceJSON: String) throws -> String? {
+        let json = #"{"type":"join","version":9,"code":"AB3XYZ","device":"# + deviceJSON + "}"
+        let message = try JSONDecoder().decode(ClientMessage.self, from: Data(json.utf8))
+        guard case .join(_, _, _, let device) = message else {
+            XCTFail("expected join")
+            throw CancellationError()
+        }
+        return device
+    }
+
+    func testJoinWithDeviceDecodesIt() throws {
+        XCTAssertEqual(try decodeDevice(#""3f9a0c-B21""#), "3f9a0c-B21")
+    }
+
+    func testJoinWithUnusableDeviceStillDecodesWithoutOne() throws {
+        let tooLong = String(repeating: "a", count: BuzzerConstants.maxDeviceIDLength + 1)
+        for garbage in [#""""#, #""has space""#, #""<script>""#, #""\#(tooLong)""#, "42", "null", "{}", #""é1""#] {
+            XCTAssertNil(try decodeDevice(garbage), garbage)
+        }
     }
 
     // MARK: - Phone disconnect report (#81)
 
     private func decodeJoin(_ json: String) throws -> (code: String, version: Int, diag: PhoneDisconnectReport?) {
         let message = try JSONDecoder().decode(ClientMessage.self, from: Data(json.utf8))
-        guard case .join(let code, let version, let diag) = message else {
+        guard case .join(let code, let version, let diag, _) = message else {
             XCTFail("expected join")
             throw CancellationError()
         }
@@ -174,8 +198,8 @@ final class BuzzerProtocolTests: XCTestCase {
 
     // MARK: - Game PIN entry and session end (#61)
 
-    func testProtocolVersionIsEight() {
-        XCTAssertEqual(BuzzerConstants.protocolVersion, 8)
+    func testProtocolVersionIsNine() {
+        XCTAssertEqual(BuzzerConstants.protocolVersion, 9)
     }
 
     func testJoinRejectedEncodesCodeAndReason() throws {

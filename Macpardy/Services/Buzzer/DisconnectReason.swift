@@ -30,6 +30,8 @@ nonisolated enum DisconnectReason: Equatable, Sendable {
     case removedByHost
     /// The server stopped (game completed, resumed or left).
     case serverStopped
+    /// The same phone rejoined on a new connection and took its team back.
+    case replacedByNewConnection
 
     var description: String {
         switch self {
@@ -53,13 +55,15 @@ nonisolated enum DisconnectReason: Equatable, Sendable {
             "removed by the host"
         case .serverStopped:
             "the buzzer server stopped"
+        case .replacedByNewConnection:
+            "the same phone reconnected and took its team back"
         }
     }
 
     /// Expected endings are `info`; ones that point at a problem are `warning`.
     var logLevel: LogLevel {
         switch self {
-        case .removedByHost, .serverStopped, .joinRejected:
+        case .removedByHost, .serverStopped, .joinRejected, .replacedByNewConnection:
             .info
         case .phoneClosed(let code):
             code == 1000 || code == 1001 ? .info : .warning

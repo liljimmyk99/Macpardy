@@ -181,11 +181,14 @@ A game works without phones. When the game starts, the app serves a page on the 
   buzzers look as before.
 - **Joining mid-game (#83):** the host can put the join screen on the Display at any time
   after setup (see §3); the Game PIN is the same one the game started with.
-- **Connection:** a phone that stops answering for 5 s counts as disconnected; the Control
-  and Display windows flag the team. The phone goes back to the Game PIN screen with its PIN
-  filled in and a dismissible "Unable to find client" toast; tapping **Join** rejoins. It
-  doesn't reconnect on its own. The host can remove a team's phone (team and score kept) and
-  the phone can rejoin.
+- **Connection:** a phone can sit in the background or with its screen locked without
+  losing its team; when the player comes back, the page reconnects on its own and the phone
+  gets its team back. A phone whose connection closes, or that stops answering for 60 s,
+  counts as disconnected; the Control and Display windows flag the team. If the page's one
+  automatic rejoin fails, it goes back to the Game PIN screen with its PIN filled in and a
+  dismissible "Unable to find client" toast; tapping **Join** rejoins (and restores the
+  team). The Mac doesn't nap or idle-sleep while the buzzer server runs. The host can remove
+  a team's phone (team and score kept) and the phone can rejoin.
 - **Game over:** when the game is completed, a save is resumed, or the host leaves the game,
   every phone returns to an empty Game PIN screen ("Game over…"). An old PIN is refused with
   "That game has ended or the PIN changed".

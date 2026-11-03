@@ -327,15 +327,16 @@
 
 <script>
   // ─── Config ──────────────────────────────────────────────────────────────
-  const PROTOCOL_VERSION = 8;
-  const WATCHDOG_MS      = 5_000;   // server pings every 2s; silence this long = lost
+  const PROTOCOL_VERSION = 9;
+  const WATCHDOG_MS      = 5_000;   // server pings every 2s; silence this long = lost (only while visible)
   const PIN_LENGTH       = 6;
   const WS_URL           = `ws://${location.hostname}:${location.port}/ws`;
 
   // ─── State ───────────────────────────────────────────────────────────────
   // The Game PIN is the server's join code. It comes from `?code=` (QR code) or
-  // the PIN screen. The page never reconnects on its own: a lost connection,
-  // a rejected PIN or a finished game all land on the PIN screen.
+  // the PIN screen. A lost connection that had joined is retried once on its
+  // own (the server gives the phone its team back); if that fails, or the PIN
+  // is rejected or the game is over, the page lands on the PIN screen.
   let pin          = normalisePin(new URLSearchParams(location.search).get("code") ?? "");
   let pinFromURL   = pin.length === PIN_LENGTH;   // a rejected URL PIN is treated as stale
   let acceptedPin  = null;    // last PIN the server accepted on this page
@@ -343,6 +344,7 @@
   let watchdogTid  = null;
   let lastServerMsgAt = 0;
   let intentionalClose = false;   // the close was expected: no "Unable to find client" toast
+  let rejoining    = false;   // the current connection is the one automatic retry
   let teams        = [];      // latest team list from the server
   let myTeamId     = null;    // team this phone holds, if any
   let buzzState    = "waiting";   // what the buzzer button shows, set by the server
@@ -360,6 +362,24 @@
   // the next join so the Mac can log the phone's side (the Mac only sees a
   // missing pong). Cleared once a join is accepted.
   const DIAG_KEY     = "macpardy.lastDisconnect";
+
+  // ─── Device id (v9) ──────────────────────────────────────────────────────
+  // A random id sent with every join, so the Mac can give a phone that
+  // reconnects its team back. Kept in sessionStorage: it survives a reload or
+  // the browser restoring the tab, but two tabs on one phone don't share it
+  // (they'd keep taking the team from each other). Not a secure context, so no
+  // crypto.randomUUID; getRandomValues works on plain http.
+  const DEVICE_KEY   = "macpardy.deviceId";
+  const deviceId = (() => {
+    try {
+      const saved = sessionStorage.getItem(DEVICE_KEY);
+      if (saved && /^[A-Za-z0-9-]{1,64}$/.test(saved)) return saved;
+    } catch {}
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    const id = Array.from(bytes, b => b.toString(16).padStart(2, "0")).join("");
+    try { sessionStorage.setItem(DEVICE_KEY, id); } catch {}
+    return id;
+  })();
   let joinedAt     = 0;       // when the current connection's join was accepted (0 = not joined)
   let hiddenMs     = 0;       // time the page spent hidden during this connection
   let hiddenSince  = null;    // when the page was last hidden, while it still is
@@ -742,6 +762,7 @@
     if (value.length !== PIN_LENGTH) return;
     pin = value;
     pinFromURL = false;
+    rejoining = false;
     connect();
   });
 
@@ -758,6 +779,9 @@
       hiddenMs += Date.now() - hiddenSince;
       hiddenSince = null;
     }
+    // Timers and messages were paused while hidden: give the socket a full
+    // watchdog window to hear a ping before calling it lost.
+    lastServerMsgAt = Date.now();
   }
 
   document.addEventListener("visibilitychange", () => document.hidden ? pageHidden() : pageVisible());
@@ -805,9 +829,9 @@
   }
 
   // ─── Connection ──────────────────────────────────────────────────────────
-  // Opens a socket and joins with `pin`. Called only from the PIN screen and on
-  // load with `?code=`; there is no automatic reconnect.
-  function connect() {
+  // Opens a socket and joins with `pin`. Called from the PIN screen, on load
+  // with `?code=`, and once after a joined connection is lost.
+  function connect(label = "Connecting…") {
     stopWatchdog();
     if (ws) {
       const old = ws;
@@ -817,7 +841,7 @@
     }
     hideToast();
     intentionalClose = false;
-    setState("connecting", "Connecting…");
+    setState("connecting", label);
 
     let socket;
     try {
@@ -835,7 +859,7 @@
       resetAnswer();       // the server resends it after the claim if answering is on
       buzzState = "waiting";
       stopResponse();      // the server resends it after the claim if still running
-      const join = { type: "join", version: PROTOCOL_VERSION, code: pin };
+      const join = { type: "join", version: PROTOCOL_VERSION, code: pin, device: deviceId };
       const diag = pendingDiag();
       if (diag) join.diag = diag;
       send(join);
@@ -850,6 +874,7 @@
 
       switch (msg.type) {
         case "joinAccepted":
+          rejoining = false;
           clearDiag();
           startConnectionClock();
           acceptedPin = pin;
@@ -1024,24 +1049,37 @@
     socket.close();
   }
 
-  // Unexpected close, failed connection, or watchdog silence: back to the PIN
-  // screen with the last PIN filled in, and the "Unable to find client" toast.
+  // Unexpected close, failed connection, or watchdog silence. A connection
+  // that had joined is retried once with the same PIN (usually the phone was in
+  // the background or the Wi-Fi blipped; the Mac restores its team). Otherwise,
+  // or if the retry fails: back to the PIN screen with the last PIN filled in,
+  // and the "Unable to find client" toast.
   function connectionLost(socket, cause, closeCode = null, closeReason = "") {
     if (socket !== ws || intentionalClose) return;
+    const wasJoined = joinedAt > 0;
     recordDisconnect(cause, closeCode, closeReason);
     intentionalClose = true;
     ws = null;
+    if (wasJoined && acceptedPin && !rejoining) {
+      rejoining = true;
+      pin = acceptedPin;
+      connect("Reconnecting…");
+      return;
+    }
+    rejoining = false;
     showPin({ value: acceptedPin ?? pin });
     showToast();
   }
 
   // If the network drops silently no close/error event fires, so treat a long
-  // silence from the server as a lost connection.
+  // silence from the server as a lost connection. Not while the page is hidden:
+  // the browser pauses it then, and that's not the Mac going away.
   function startWatchdog(socket) {
     stopWatchdog();
     lastServerMsgAt = Date.now();
     watchdogTid = setInterval(() => {
       if (socket !== ws) { stopWatchdog(); return; }
+      if (document.hidden) return;
       if (Date.now() - lastServerMsgAt > WATCHDOG_MS) {
         connectionLost(socket, "watchdog");
         socket.close();

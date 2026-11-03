@@ -6,6 +6,10 @@
 //  most one session; a claim lives exactly as long as its session does.
 //  Scores are never stored here, so a freed team keeps its score.
 //
+//  Phones that send a `device` id (#84) are also remembered by it: the team a
+//  device last held is restored when it rejoins, and a device can take its own
+//  team back from an older connection the server hasn't timed out yet.
+//
 
 import Foundation
 
@@ -13,12 +17,17 @@ nonisolated struct TeamClaimRegistry {
 
     enum ClaimResult: Equatable {
         case claimed
+        /// The same device held the team on an older session, which the caller
+        /// should now close.
+        case reclaimed(fromSessionID: UUID)
         case alreadyHeld
         case taken
         case invalidTeam
     }
 
     private(set) var claims: [UUID: UUID] = [:]   // team id -> session id
+    private var deviceBySession: [UUID: String] = [:]   // claiming session id -> device id
+    private var lastTeamByDevice: [String: UUID] = [:]  // device id -> team it last held
 
     var claimedTeamIDs: Set<UUID> { Set(claims.keys) }
 
@@ -35,15 +44,32 @@ nonisolated struct TeamClaimRegistry {
     }
 
     /// Claims `teamID` for `sessionID`. A session holds at most one team, so any
-    /// team it previously held is released when the new claim succeeds.
-    mutating func claim(teamID: UUID, sessionID: UUID, validTeamIDs: Set<UUID>) -> ClaimResult {
+    /// team it previously held is released when the new claim succeeds. A team
+    /// held by another session is taken over only when both share `deviceID`.
+    mutating func claim(teamID: UUID, sessionID: UUID, deviceID: String? = nil, validTeamIDs: Set<UUID>) -> ClaimResult {
         guard validTeamIDs.contains(teamID) else { return .invalidTeam }
+        var result = ClaimResult.claimed
         if let holder = claims[teamID] {
-            return holder == sessionID ? .alreadyHeld : .taken
+            if holder == sessionID { return .alreadyHeld }
+            guard let deviceID, deviceBySession[holder] == deviceID else { return .taken }
+            release(sessionID: holder)
+            result = .reclaimed(fromSessionID: holder)
         }
         release(sessionID: sessionID)
         claims[teamID] = sessionID
-        return .claimed
+        if let deviceID {
+            deviceBySession[sessionID] = deviceID
+            lastTeamByDevice[deviceID] = teamID
+        }
+        return result
+    }
+
+    /// The team `deviceID` last held, if it still exists and no other device
+    /// holds it now.
+    func teamToRestore(forDevice deviceID: String, validTeamIDs: Set<UUID>) -> UUID? {
+        guard let teamID = lastTeamByDevice[deviceID], validTeamIDs.contains(teamID) else { return nil }
+        guard let holder = claims[teamID] else { return teamID }
+        return deviceBySession[holder] == deviceID ? teamID : nil
     }
 
     /// Frees whatever team the session holds. Returns that team's id, if any.
@@ -51,28 +77,40 @@ nonisolated struct TeamClaimRegistry {
     mutating func release(sessionID: UUID) -> UUID? {
         guard let teamID = teamID(for: sessionID) else { return nil }
         claims.removeValue(forKey: teamID)
+        deviceBySession.removeValue(forKey: sessionID)
         return teamID
     }
 
-    /// Frees the team regardless of who holds it. Returns the previous holder.
+    /// Frees the team regardless of who holds it, and forgets it as the
+    /// holder's device's team so it isn't restored on rejoin. Returns the
+    /// previous holder.
     @discardableResult
     mutating func remove(teamID: UUID) -> UUID? {
-        claims.removeValue(forKey: teamID)
+        guard let holder = claims.removeValue(forKey: teamID) else { return nil }
+        if let deviceID = deviceBySession.removeValue(forKey: holder), lastTeamByDevice[deviceID] == teamID {
+            lastTeamByDevice.removeValue(forKey: deviceID)
+        }
+        return holder
     }
 
     /// Drops claims on teams that no longer exist. Returns the evicted sessions.
     @discardableResult
     mutating func prune(validTeamIDs: Set<UUID>) -> [UUID] {
         let stale = claims.keys.filter { !validTeamIDs.contains($0) }
-        return stale.compactMap { claims.removeValue(forKey: $0) }
+        let evicted = stale.compactMap { claims.removeValue(forKey: $0) }
+        evicted.forEach { deviceBySession.removeValue(forKey: $0) }
+        return evicted
     }
 
     /// Frees every claim whose session is not in `liveSessionIDs` (TTL sweep).
     /// Returns the freed team ids.
     @discardableResult
     mutating func sweep(liveSessionIDs: Set<UUID>) -> [UUID] {
-        let dead = claims.filter { !liveSessionIDs.contains($0.value) }.map(\.key)
-        dead.forEach { claims.removeValue(forKey: $0) }
-        return dead
+        let dead = claims.filter { !liveSessionIDs.contains($0.value) }
+        for (teamID, sessionID) in dead {
+            claims.removeValue(forKey: teamID)
+            deviceBySession.removeValue(forKey: sessionID)
+        }
+        return Array(dead.keys)
     }
 }

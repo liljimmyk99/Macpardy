@@ -1,4 +1,4 @@
-# Macpardy! Buzzer WebSocket Protocol — v8
+# Macpardy! Buzzer WebSocket Protocol — v9
 
 All WebSocket messages are JSON objects with a required top-level `type` string field
 and an optional `payload` object. Unknown `type` values should be silently ignored by
@@ -30,16 +30,18 @@ and closes the connection.
 ```json
 {
   "type": "join",
-  "version": 8,
+  "version": 9,
   "code": "AB3XYZ",
+  "device": "9f3c0a6e1b2d4c5e8f7a6b5c4d3e2f10",
   "diag": { "cause": "watchdog", "connectedMs": 720000, "hiddenMs": 38000, "hiddenAtLoss": false, "secondsSince": 41 }
 }
 ```
 
 | Field     | Type   | Description                                              |
 |-----------|--------|----------------------------------------------------------|
-| `version` | int    | Required. Protocol version the client speaks. Currently always `8`. A missing version is not decodable and the message is ignored. |
+| `version` | int    | Required. Protocol version the client speaks. Currently always `9`. A missing version is not decodable and the message is ignored. |
 | `code`    | string | The 6-character join code ("Game PIN") shown on the host's screen. |
+| `device`  | string | Optional (v9). A random id the page keeps in `sessionStorage` (`macpardy.deviceId`), 1–64 letters, digits or `-`. Per tab: it survives a reload or the browser restoring the tab, but two tabs on one phone get different ids so they can't take a team from each other. Lets a phone that reconnects get its team back; see [Team claims](#team-claims-and-presence). Anything else is ignored. |
 | `diag`    | object | Optional (v8). How this phone's previous connection ended; see below. |
 
 #### `diag`: the phone's disconnect report
@@ -47,8 +49,9 @@ and closes the connection.
 The Mac only sees a phone stop answering pings; it can't tell a locked screen from a Wi-Fi
 drop. So when a joined connection ends, the page saves what it saw to `localStorage`
 (`macpardy.lastDisconnect`) and sends it as `diag` on its next `join`. It clears the saved
-report once a join is accepted, so a wrong PIN doesn't lose it. The page never reconnects on
-its own, so the report arrives when the player re-enters the PIN (or reloads with `?code=`).
+report once a join is accepted, so a wrong PIN doesn't lose it. The report arrives with the
+page's one automatic rejoin (see [Connection-lost behaviour](#connection-lost-behaviour)), or
+when the player re-enters the PIN (or reloads with `?code=`).
 
 Every field is optional. The server reads each one on its own: numbers are clamped to the
 ranges below, strings are cut to 64 characters, an unknown `cause` is dropped, and a `diag`
@@ -86,7 +89,7 @@ The server answers with `claimAccepted` or `claimRejected`.
 
 ### `pong`
 
-Sent in response to a `ping` from the server. Resets the 5-second heartbeat TTL.
+Sent in response to a `ping` from the server. Resets the 60-second heartbeat TTL.
 
 ```json
 { "type": "pong" }
@@ -157,7 +160,7 @@ Sent to the joining phone after a valid join code is received.
 
 | Payload field | Type     | Description                                                     |
 |---------------|----------|-----------------------------------------------------------------|
-| `version`     | int      | Protocol version the server is speaking. Currently always `8`.  |
+| `version`     | int      | Protocol version the server is speaking. Currently always `9`.  |
 | `teams`       | object[] | Teams in display order (at most 4). `claimed` is true while a phone holds the team; the phone disables that team's Join button. `color` is one of `blue`, `red`, `green`, `yellow`, `purple`, `orange`. |
 
 ---
@@ -272,7 +275,7 @@ its own. The team keeps its score, and a new phone can claim it.
 ### `ping`
 
 Heartbeat request sent by the server every 2 seconds to each connected client.
-The client must respond with a `pong` within 5 seconds or it is disconnected.
+The client must respond with a `pong` within 60 seconds or it is disconnected.
 
 ```json
 { "type": "ping" }
@@ -330,19 +333,27 @@ Server                          Phone
   |                               |
   |─── ping ─────────────────────>|
   |                               |
-  |<── pong ──────────────────────|   (within 5 s)
+  |<── pong ──────────────────────|   (within 60 s)
   |                               |
   | (repeat every 2 s)            |
 ```
 
-If no `pong` is received within `heartbeatTTL` (5 s), the server closes the connection
+If no `pong` is received within `heartbeatTTL` (60 s), the server closes the connection
 and frees the team the phone held. The check runs on the 2 s ping timer, so the slot is
-released between 5 and 7 s after the last pong.
-A socket that connects but never sends a valid `join` within the same TTL is also closed.
+released between 60 and 62 s after the last pong. The TTL is long on purpose (#84): a phone's
+browser stops running the page while it's in the background or the screen is locked, and
+a short Wi-Fi blip shouldn't free the team. A phone that really leaves is usually seen
+sooner, when its TCP connection closes.
+A socket that connects but never sends a valid `join` within `joinTTL` (5 s) is closed.
 
-The phone runs its own watchdog: if it hears nothing from the server for 5 s (for
-example Wi-Fi dropped without a TCP close), it closes the socket and treats it as a lost
-connection (below).
+While the server runs, the Mac holds off App Nap and idle sleep
+(`ProcessInfo.beginActivity(.userInitiated)`), since a napping or sleeping Mac stops
+answering every phone at once.
+
+The phone runs its own watchdog: if it hears nothing from the server for 5 s while the page
+is visible (for example Wi-Fi dropped without a TCP close), it closes the socket and treats
+it as a lost connection (below). The watchdog doesn't count time the page spends hidden, and
+gives the socket a fresh 5 s when the page comes back to the foreground.
 
 ---
 
@@ -369,16 +380,21 @@ The "Game PIN" players see is the server's 6-character join code.
 
 ## Connection-lost behaviour
 
-The page **doesn't reconnect on its own**. When the WebSocket closes or errors unexpectedly
-(no `sessionEnded`, `removed` or `joinRejected` first), or the watchdog fires, the phone:
+When the WebSocket closes or errors unexpectedly (no `sessionEnded`, `removed` or
+`joinRejected` first), or the watchdog fires:
 
-- goes back to the Game PIN screen with the last accepted PIN filled in, so rejoining is
-  one tap on **Join** (then picking the team again);
-- shows an **"Unable to find client"** toast (preloaded in the page) that the player can
-  dismiss. It also goes away on the next join attempt.
+- If that connection had joined, the page **rejoins once on its own** ("Reconnecting…")
+  with the last accepted PIN and its `device` id, and the server gives it its team back.
+  This is the usual case of a phone coming back from the background or a Wi-Fi blip, and
+  the player doesn't have to do anything (#84).
+- Otherwise, or if that one retry fails, the phone goes back to the Game PIN screen with
+  the last accepted PIN filled in, so rejoining is one tap on **Join**, and shows an
+  **"Unable to find client"** toast (preloaded in the page) that the player can dismiss. It
+  also goes away on the next join attempt.
 
-This covers a failed connection after tapping **Join** (app not running, wrong network), a
-mid-game network drop, and the app being quit or the Mac going to sleep.
+The PIN screen covers a failed connection after tapping **Join** (app not running, wrong
+network), a network drop that outlasts the retry, and the app being quit or the Mac going to
+sleep. The page never retries more than once in a row, so a dead PIN doesn't loop.
 
 `removed` is unchanged: the phone shows "Removed by host" and stays there.
 
@@ -392,10 +408,19 @@ carries as `diag`.
 - A team is held by at most one phone; a claim lives exactly as long as the phone's
   connection. When the connection drops (TTL, close, or host removal) the slot is freed
   and anyone with the join code can claim it.
+- The server remembers the team each `device` id last held. When that device's `join` is
+  accepted and its team still exists and is free (or held by an older connection from the
+  same device), the server claims it for the new connection and sends `claimAccepted` (plus
+  the usual `buzzerState`, wager, answer and timer messages) without the phone asking. An
+  older connection from the same device is closed (logged as "the same phone reconnected").
+  The same takeover applies to an explicit `claim`. A team the host removed the phone from
+  is forgotten, so that phone isn't put back on it.
 - Scores belong to the team, not the phone, so a freed team keeps its score and whoever
   claims it next inherits it.
-- A phone that refreshes gets a new connection, so it can be blocked (`taken`) for up to
-  5 s until the server times out the old one.
+- A phone that refreshes gets a new connection and, with its `device` id, its team back
+  straight away. A *different* phone can be blocked (`taken`) from a team whose phone
+  vanished without closing its connection for up to 60 s, until the server times it out;
+  the host can free it sooner by removing that phone.
 - The host app marks a team as disconnected once a phone has held it and none does now.
 
 ---
@@ -565,6 +590,7 @@ Final answering is over (the host left the Final); the phone returns to the buzz
 | 6       | Issue #61. Adds `sessionEnded` and `joinRejected.code`. The page asks for a Game PIN when opened without `?code=` and no longer reconnects on its own. |
 | 7       | Issue #80. Adds `submitAnswer`, `answerInfo`, `answerSaved`, `answerRejected` and `answerClosed`. A page left open from an older version is told to reload, since it couldn't answer. |
 | 8       | Issue #81. `join` may carry `diag`, the phone's report on how its previous connection ended. |
+| 9       | Issue #84. `join` may carry `device`; a rejoining phone gets its team back. Heartbeat TTL 5 s → 60 s (join TTL stays 5 s). The page's watchdog ignores time hidden, and the page rejoins once on its own after a lost connection. |
 
 ## Troubleshooting disconnects
 
@@ -574,7 +600,8 @@ it picks one), a 4-character connection id, how long it was connected, and the r
 
 | Reason in the log | Likely cause |
 |---|---|
-| `no pong for 6.1s (heartbeat timeout…)` | The phone stopped running the page: screen locked, browser in the background, or the phone left Wi-Fi. The phone's report on rejoin tells these apart. |
+| `no pong for 61.2s (heartbeat timeout…)` | The phone stopped running the page for over a minute: screen locked, browser in the background, or the phone left Wi-Fi. The phone's report on rejoin tells these apart. |
+| `the same phone reconnected and took its team back` | The phone rejoined (after the background, a reload or a Wi-Fi blip) before the server had timed out its old connection. Expected. |
 | `phone closed the connection (1001 going away…)` | The player closed the tab, reloaded, or navigated away. |
 | `phone closed the connection (no status code)` | The page closed the socket itself, usually its watchdog after 5 s without hearing from the Mac. |
 | `the connection ended without a WebSocket close` / `network error: …` | The network dropped the connection (Wi-Fi off, out of range, router). |

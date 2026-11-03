@@ -11,6 +11,8 @@
 //  • Handles WebSocket connections (manual RFC 6455 framing over plain TCP)
 //  • Validates the join code on first contact; rejects wrong codes
 //  • Pings all sessions on a timer; evicts sessions that miss the TTL
+//  • Gives a rejoining phone (same `device` id) its team back
+//  • Keeps App Nap and idle sleep off while running, so pings stay on time
 //  • Broadcasts ServerMessage values to all authenticated sessions
 //  • On stop, tells joined phones the session ended (`sessionEnded`) so they
 //    return to their Game PIN screen
@@ -40,6 +42,9 @@ actor BuzzerServer {
     private var listener: NWListener?
     private var sessions: [UUID: ClientSession] = [:]
     private var heartbeatTask: Task<Void, Never>?
+    /// Holds off App Nap and idle system sleep while the server runs: a napping
+    /// or sleeping Mac stops answering every phone at once.
+    private var hostingActivity: NSObjectProtocol?
 
     /// Teams phones can pick from, as last pushed by the app. `claimed` is
     /// ignored here; it is always derived from `claims`.
@@ -210,6 +215,10 @@ actor BuzzerServer {
         }
 
         startHeartbeat()
+        hostingActivity = ProcessInfo.processInfo.beginActivity(
+            options: .userInitiated,
+            reason: "Hosting phone buzzers"
+        )
     }
 
     private func reportListenerFailure(_ error: Error) {
@@ -222,6 +231,10 @@ actor BuzzerServer {
     func stop() {
         heartbeatTask?.cancel()
         heartbeatTask = nil
+        if let hostingActivity {
+            ProcessInfo.processInfo.endActivity(hostingActivity)
+            self.hostingActivity = nil
+        }
         tieWindowTask?.cancel()
         tieWindowTask = nil
         let closing = Array(sessions.values)
@@ -760,7 +773,7 @@ actor BuzzerServer {
 
     private func handleClientMessage(_ message: ClientMessage, from session: ClientSession) {
         switch message {
-        case .join(let code, let version, let diag):
+        case .join(let code, let version, let diag, let device):
             guard version == BuzzerConstants.protocolVersion else {
                 session.send(
                     .joinRejected(.unsupportedVersion),
@@ -788,12 +801,18 @@ actor BuzzerServer {
 
             if code == joinCode {
                 session.isAuthenticated = true
+                session.deviceID = device
                 session.lastPong = Date()
                 session.send(.joinAccepted(teams: teamsPayload()))
                 publishCount()
                 AppLogger.buzzer.info("Join accepted from \(session.logLabel)", remote: session.remoteKey)
                 if let diag {
                     AppLogger.buzzer.notice("Phone report (\(session.remoteKey) #\(session.shortID)): \(diag.summary)", remote: session.remoteKey)
+                }
+                // A phone coming back (background, lock screen, Wi-Fi blip)
+                // goes straight back to its team.
+                if let device, let teamID = claims.teamToRestore(forDevice: device, validTeamIDs: Set(currentTeams.map(\.id))) {
+                    claimTeam(teamID, for: session, restoring: true)
                 }
             } else {
                 let limited = codeLimiter.record(session.remoteKey)
@@ -817,40 +836,7 @@ actor BuzzerServer {
                 return
             }
 
-            let previousTeamID = claims.teamID(for: session.id)
-            switch claims.claim(
-                teamID: teamID,
-                sessionID: session.id,
-                validTeamIDs: Set(currentTeams.map(\.id))
-            ) {
-            case .claimed:
-                session.send(.claimAccepted(teamID: teamID))
-                sendBuzzerState(toTeam: teamID)
-                sendWagerInfo(toTeam: teamID)
-                sendAnswerInfo(toTeam: teamID)
-                sendResponseTimer(to: session)
-                claimsChanged()
-                if let previousTeamID, previousTeamID != teamID {
-                    AppLogger.buzzer.info("\(teamName(previousTeamID)) released by \(session.logLabel)", team: teamName(previousTeamID), remote: session.remoteKey)
-                }
-                session.claimedTeamName = teamName(teamID)
-                AppLogger.buzzer.info("Claim accepted: \(session.logLabel)", team: teamName(teamID), remote: session.remoteKey)
-            case .alreadyHeld:
-                session.send(.claimAccepted(teamID: teamID))
-                sendBuzzerState(toTeam: teamID)
-                sendWagerInfo(toTeam: teamID)
-                sendAnswerInfo(toTeam: teamID)
-                sendResponseTimer(to: session)
-            // Refresh the picker first so the rejection message isn't wiped by it.
-            case .taken:
-                session.send(.teams(teamsPayload()))
-                session.send(.claimRejected(reason: .taken))
-                AppLogger.buzzer.info("Claim of \(teamName(teamID)) by \(session.logLabel) rejected: another phone holds it", team: teamName(teamID), remote: session.remoteKey)
-            case .invalidTeam:
-                session.send(.teams(teamsPayload()))
-                session.send(.claimRejected(reason: .invalidTeam))
-                AppLogger.buzzer.info("Claim by \(session.logLabel) rejected: no such team", remote: session.remoteKey)
-            }
+            claimTeam(teamID, for: session)
 
         case .pong:
             session.lastPong = Date()
@@ -869,6 +855,57 @@ actor BuzzerServer {
         }
     }
 
+    // MARK: - Claims
+
+    /// Gives `teamID` to `session`. `restoring` is a rejoining phone getting
+    /// its last team back unasked, so a refusal is silent: it just picks again.
+    private func claimTeam(_ teamID: UUID, for session: ClientSession, restoring: Bool = false) {
+        let previousTeamID = claims.teamID(for: session.id)
+        let result = claims.claim(
+            teamID: teamID,
+            sessionID: session.id,
+            deviceID: session.deviceID,
+            validTeamIDs: Set(currentTeams.map(\.id))
+        )
+        switch result {
+        case .claimed, .reclaimed:
+            if case .reclaimed(let oldSessionID) = result, let old = sessions[oldSessionID] {
+                // Same phone, older connection the TTL hasn't caught yet.
+                old.close()
+                removeSession(old, reason: .replacedByNewConnection)
+            }
+            session.send(.claimAccepted(teamID: teamID))
+            sendBuzzerState(toTeam: teamID)
+            sendWagerInfo(toTeam: teamID)
+            sendAnswerInfo(toTeam: teamID)
+            sendResponseTimer(to: session)
+            claimsChanged()
+            if let previousTeamID, previousTeamID != teamID {
+                AppLogger.buzzer.info("\(teamName(previousTeamID)) released by \(session.logLabel)", team: teamName(previousTeamID), remote: session.remoteKey)
+            }
+            session.claimedTeamName = teamName(teamID)
+            let how = restoring ? "Team restored on rejoin" : "Claim accepted"
+            AppLogger.buzzer.info("\(how): \(session.logLabel)", team: teamName(teamID), remote: session.remoteKey)
+        case .alreadyHeld:
+            session.send(.claimAccepted(teamID: teamID))
+            sendBuzzerState(toTeam: teamID)
+            sendWagerInfo(toTeam: teamID)
+            sendAnswerInfo(toTeam: teamID)
+            sendResponseTimer(to: session)
+        case .taken, .invalidTeam:
+            guard !restoring else { return }
+            // Refresh the picker first so the rejection message isn't wiped by it.
+            session.send(.teams(teamsPayload()))
+            if result == .taken {
+                session.send(.claimRejected(reason: .taken))
+                AppLogger.buzzer.info("Claim of \(teamName(teamID)) by \(session.logLabel) rejected: another phone holds it", team: teamName(teamID), remote: session.remoteKey)
+            } else {
+                session.send(.claimRejected(reason: .invalidTeam))
+                AppLogger.buzzer.info("Claim by \(session.logLabel) rejected: no such team", remote: session.remoteKey)
+            }
+        }
+    }
+
     // MARK: - Heartbeat
 
     private func startHeartbeat() {
@@ -884,14 +921,15 @@ actor BuzzerServer {
 
     private func heartbeatTick() {
         let ttl = BuzzerConstants.heartbeatTTL
+        let joinTTL = BuzzerConstants.joinTTL
         let now = Date()
         var toRemove: [(ClientSession, DisconnectReason)] = []
 
         for session in sessions.values {
             if !session.isAuthenticated {
-                // Never joined: give it one TTL to send a valid `join`, don't ping it.
+                // Never joined: give it `joinTTL` to send a valid `join`, don't ping it.
                 let waited = now.timeIntervalSince(session.connectedAt)
-                if waited > ttl {
+                if waited > joinTTL {
                     session.close()
                     toRemove.append((session, .neverJoined(after: waited)))
                 }
