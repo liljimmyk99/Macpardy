@@ -53,7 +53,7 @@ final class GameCommandAvailabilityTests: XCTestCase {
         }
     }
 
-    func testNothingIsEnabledWithoutAGame() {
+    func testOnlyTheDisplayIsEnabledWithoutAGame() {
         for phase in GamePhase.allCases {
             let none = availability(phase, hasGame: false)
             XCTAssertFalse(none.canReturnToBoard)
@@ -61,8 +61,15 @@ final class GameCommandAvailabilityTests: XCTestCase {
             XCTAssertFalse(none.canAdvanceRound)
             XCTAssertFalse(none.canRevealAnswer)
             XCTAssertFalse(none.canControlTimer)
-            XCTAssertFalse(none.canShowDisplay)
             XCTAssertFalse(none.canOpenBuzzers)
+        }
+    }
+
+    /// The Display shows a waiting screen until a game is picked (#82).
+    func testDisplayCanBeShownWithoutAGame() {
+        for phase in GamePhase.allCases {
+            XCTAssertTrue(availability(phase, hasGame: false).canShowDisplay)
+            XCTAssertTrue(availability(phase).canShowDisplay)
         }
     }
 }

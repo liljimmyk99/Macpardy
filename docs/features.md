@@ -106,7 +106,9 @@ The **Buzzers** button shows the Game PIN and how many teams have a phone; its d
 when a phone stops responding. It opens a popover with the QR code, Game PIN, the page address
 (the copy button copies the full link with the PIN), and
 each team's phone status with **Remove phone**. The Display window, opened with
-**Show Display**, mirrors the phase full-screen with a scoreboard along the bottom.
+**Show Display** (⌘D), mirrors the phase full-screen with a scoreboard along the bottom. ⌘D
+works from the launch screen too: until a game is picked, the Display shows a "Waiting for the
+host to start a game…" screen, so it can go up on the TV early.
 
 | Phase | Host (Control) | Display |
 |---|---|---|
@@ -131,8 +133,9 @@ Scoring rules the app applies:
   Revealing the answer or returning to the board cancels it.
 - Final Macpardy: teams at $0 or below are excluded and wager 0. A team with no wager when the
   question is revealed bets everything.
-- **Complete Game** clears the auto-save and starts a new buzzer session (new Game PIN);
-  phones go back to their Game PIN screen.
+- **Complete Game** clears the auto-save and sends the Control window back to the launch
+  screen; the Display stays open on its waiting screen. The buzzer server stops, so phones go
+  back to their Game PIN screen ("Game over…"); the next game gets a new Game PIN.
 
 Sound: the Control Mac plays a buzzer on a wrong answer, a warning over the last 5 seconds of
 the timer, stings for Daily Double and Final Macpardy, and quiet music on the board. The
@@ -299,7 +302,7 @@ while the editor is up. Every shortcut is defined once in
 | Any window | ⌘/ | Open **Keyboard Shortcuts** |
 | Any window | ⌥⌘L | Open **Logs** |
 | Control, any phase in a game (buzzers on) | ⌘⇧B | Open the **Buzzers** popover |
-| Control, any phase in a game | ⌘D | **Show Display** |
+| Control, launch screen or any phase | ⌘D | **Show Display** (waiting screen until a game is picked) |
 | Control, Board | ⌘F | **Final Macpardy** |
 | Control, Board | ⌘→ | **Next Round** |
 | Control, Question / Answer | ⌘B | **Return to Board** |

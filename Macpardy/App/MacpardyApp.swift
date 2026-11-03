@@ -149,6 +149,18 @@ struct MacpardyApp: App {
         }
     }
 
+    /// Finishes the game (#82): the save is cleared and the Control window
+    /// goes back to the launch screen, which stops the buzzer server (phones
+    /// see "Game over") and the sounds. The Display shows its waiting screen.
+    private func completeGame() {
+        AppLogger.control.info("Game completed")
+        // Both change together, so neither window draws the setup phase in between.
+        gameState.endGame()
+        hasSelectedGame = false
+        // Started before the launch screen appears and looks for a save to resume.
+        Task { await GameSaveStore.shared.clear() }
+    }
+
     /// Starts a game the user just edited and saved. Ignored while a game is
     /// in progress, like boards opened from Finder.
     private func playEditedBoards(_ boards: [MacpardyBoard]) {
@@ -168,6 +180,7 @@ struct MacpardyApp: App {
                     ControlView()
                         .environment(gameState)
                         .environment(buzzerState)
+                        .environment(\.completeGame, completeGame)
                 } else {
                     LaunchScreenView(hasSelectedGame: $hasSelectedGame, gameState: $gameState)
                         .environment(buzzerState)
@@ -273,6 +286,8 @@ struct MacpardyApp: App {
                 PresentationView()
                     .environment(gameState)
                     .environment(buzzerState)
+            } else {
+                WaitingForGameView()
             }
         }
         .defaultSize(width: 1920, height: 1080)
