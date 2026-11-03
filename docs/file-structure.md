@@ -40,6 +40,7 @@ Macpardy/
 │   ├── QuestionImage.swift       image path + bytes; controls whether bytes are encoded
 │   ├── Team.swift                name, score, color (max 4)
 │   ├── GamePhase.swift           setup, board, question, answer, dailyDouble, final…
+│   ├── BoardNavigator.swift      Arrow-key board highlight: moves over open tiles
 │   ├── GameState.swift           @Observable game in progress; all game actions
 │   ├── GameSnapshot.swift        Codable auto-save payload (schemaVersion)
 │   └── BoardEditorSession.swift  Launch screen ⇄ editor ⇄ app handoff, unsaved-changes prompts

@@ -19,6 +19,11 @@ final class GameState {
     /// Display plays the board intro (categories one by one, then the clues).
     /// Not saved: a resumed game shows its board straight away.
     var boardIntroPending = false
+    /// The tile the host picked with the arrow keys or the mouse (#88), shown
+    /// on the Control and the Display. It stays put after its clue is played
+    /// (and is drawn only on open tiles), so the next arrow press starts from
+    /// where the host was. Not saved.
+    var highlightedTile: BoardPosition?
 
     // Buzz-in response (issue #59)
     /// Counts down the answering team's time after a phone buzz wins.
@@ -112,6 +117,7 @@ final class GameState {
         self.finalMacpardyRevealedTeamID = snapshot.finalMacpardyRevealedTeamID
         self.currentCategoryTitle = snapshot.currentCategoryTitle
         self.currentQuestion = nil
+        self.highlightedTile = nil
         cancelResponse()
         if let qID = snapshot.currentQuestionID,
            game.rounds.indices.contains(game.currentRound) {
@@ -180,6 +186,22 @@ final class GameState {
         dailyDoubleWager = 0
         finalMacpardyRevealedTeamID = nil
         triggerSave()
+    }
+
+    /// Moves the board highlight one step, skipping played tiles.
+    func moveHighlight(_ direction: BoardDirection) {
+        guard phase == .board, let board = game.currentBoard else { return }
+        highlightedTile = BoardNavigator.move(from: highlightedTile, direction, on: board)
+    }
+
+    /// Opens the highlighted clue, as clicking its tile does.
+    func openHighlightedQuestion() {
+        guard phase == .board,
+              let board = game.currentBoard,
+              let position = highlightedTile,
+              BoardNavigator.isOpen(position, on: board),
+              let question = BoardNavigator.question(at: position, on: board) else { return }
+        selectQuestion(question, categoryTitle: board.categories[position.column].title)
     }
 
     func showDailyDouble() {
@@ -340,6 +362,7 @@ final class GameState {
                 showFinalMacpardy()
             } else {
                 game.currentRound = nextRound
+                highlightedTile = nil
                 showBoard()
                 boardIntroPending = true
             }
@@ -356,6 +379,7 @@ final class GameState {
         )
         self.phase = .setup
         cancelResponse()
+        self.highlightedTile = nil
         self.currentQuestion = nil
         self.currentCategoryTitle = nil
         self.dailyDoubleTeamID = nil

@@ -49,6 +49,7 @@ extension QuestionControlView {
             .foregroundStyle(MacpardyTheme.boardBlue)
             .controlSize(.extraLarge)
             .disabled(gameState.phase == .answer)
+            .help(Text("control.question.button.reveal_answer") + Text(verbatim: " (\(AppShortcut.revealAnswer.glyph))"))
         }
         .padding(16)
         .background(MacpardyTheme.panelBlue)

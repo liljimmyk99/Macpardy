@@ -3,6 +3,7 @@
 //  Macpardy
 //
 //  One clickable board tile. Played tiles go blank and disabled, as on the Display.
+//  The highlighted tile (arrow keys or mouse) is lit on both screens.
 //
 
 import SwiftUI
@@ -11,13 +12,16 @@ struct ControlQuestionTile: View {
 
     let question: Question
     let categoryTitle: String
+    var isHighlighted = false
     let action: () -> Void
+    /// The pointer moved onto an open tile.
+    var onHover: () -> Void = {}
 
-    @State private var isHovered = false
+    private var showsHighlight: Bool { isHighlighted && !question.hasBeenPlayed }
 
     private var fill: Color {
         if question.hasBeenPlayed { return MacpardyTheme.tilePlayed }
-        return isHovered ? MacpardyTheme.tileHover : MacpardyTheme.tileBlue
+        return showsHighlight ? MacpardyTheme.tileHover : MacpardyTheme.tileBlue
     }
 
     var body: some View {
@@ -52,14 +56,23 @@ struct ControlQuestionTile: View {
                         .padding(8)
                 }
             }
+            .overlay {
+                if showsHighlight {
+                    Rectangle()
+                        .strokeBorder(MacpardyTheme.gold, lineWidth: 3)
+                }
+            }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(question.hasBeenPlayed)
-        .onHover { isHovered = $0 }
+        .onHover { isInside in
+            if isInside && !question.hasBeenPlayed { onHover() }
+        }
         .accessibilityLabel(Text("control.board.tile.accessibility \(categoryTitle) \(question.value)"))
         .accessibilityValue(accessibilityValue)
+        .accessibilityAddTraits(showsHighlight ? .isSelected : [])
     }
 
     private var accessibilityValue: Text {
@@ -73,6 +86,11 @@ struct ControlQuestionTile: View {
     HStack(spacing: 4) {
         ControlQuestionTile(question: Question(value: 400, clue: "Test", response: "Test"), categoryTitle: "Science") {}
         ControlQuestionTile(
+            question: Question(value: 600, clue: "Test", response: "Test"),
+            categoryTitle: "Science",
+            isHighlighted: true
+        ) {}
+        ControlQuestionTile(
             question: Question(value: 800, clue: "Test", response: "Test", isDailyDouble: true),
             categoryTitle: "Science"
         ) {}
@@ -81,7 +99,7 @@ struct ControlQuestionTile: View {
             categoryTitle: "Science"
         ) {}
     }
-    .frame(width: 480, height: 110)
+    .frame(width: 640, height: 110)
     .padding()
     .background(MacpardyTheme.boardBlue)
 }

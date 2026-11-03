@@ -36,10 +36,11 @@ Full walkthrough: [docs/features.md](docs/features.md).
 | ⌘J | Show / hide the buzzer **join screen** on the Display (mid-game, when buzzers are on) |
 | ⌘F | **Final Macpardy** (from the board) |
 | ⌘→ | **Next Round** (from the board) |
+| ← ↑ → ↓, Return | Board: highlight a clue (on both screens), then open it |
 | ⌘← | Reset the timer |
 | ⌘− / ⌘+ | Timer −5 s / +5 s |
 
-Everything except the start screen and editor ones is in the **Game** menu, which greys out items that don't apply. Where each one applies: [docs/features.md §7](docs/features.md#7-keyboard-shortcuts).
+Everything except the start screen, editor and board-arrow ones is in the **Game** menu, which greys out items that don't apply. Where each one applies: [docs/features.md §7](docs/features.md#7-keyboard-shortcuts).
 
 ## Quick start
 

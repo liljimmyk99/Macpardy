@@ -99,7 +99,10 @@ A sheet with two options:
 The Control window uses the Display's board look. Its toolbar shows the round title and
 progress, a **Buzzers** button (hidden when buzzers are off in Settings), **Show Display**, and on the board **Final Macpardy** and
 **Next Round**. On the board phase the host picks clues from a copy of the Display board; Daily
-Doubles (a gold **DD** badge) and clues with pictures are marked for the host only. Team scores
+Doubles (a gold **DD** badge) and clues with pictures are marked for the host only. The arrow
+keys move a gold highlight over the open tiles (played ones are skipped) and Return or Space opens
+the highlighted clue; pointing at a tile with the mouse moves the highlight too. The highlight
+shows on the Display as well, so the room can see which clue is coming. Team scores
 run along the bottom with ±100 buttons (right-click a team to reset its score).
 
 The **Buzzers** button shows the Game PIN and how many teams have a phone; its dot turns orange
@@ -118,7 +121,7 @@ host to start a game…" screen, so it can go up on the TV early.
 | Phase | Host (Control) | Display |
 |---|---|---|
 | **Setup** | Team cards (max 4): rename, pick a color swatch, remove, **Add Team**; buzzer panel with QR code, Game PIN, page address, and how many teams have a phone; **Start Game**. With buzzers off: no phone status, and the panel just says buzzers are off | Buzzer QR code, page address, and Game PIN, with a card per team showing **Connected** / **Not connected**; "Waiting to start game…" if the buzzer server isn't running. With buzzers off: a card per team with its name only |
-| **Board** | Pick a clue from the board; **Next Round**; show/hide the Display window | The board, played tiles blanked |
+| **Board** | Pick a clue from the board (click, or arrow keys + Return); **Next Round**; show/hide the Display window | The board, played tiles blanked, the host's highlighted tile |
 | **Daily Double** | Pick the team and wager (quick-wager buttons), **Show Question** | Daily Double splash |
 | **Question** | Clue as a big tile, correct response (host only) with **Reveal Answer**, who buzzed first with their response timer (5 s by default) (or the Daily Double team and wager), question timer ring (15 s by default; start/pause/reset/±5 s), ✓/✗ score buttons on each team card (only the Daily Double team's on a Daily Double), **Return to Board** in the toolbar | Clue (and picture, if any), timer; response-timer dots above the answering team's score |
 | **Answer** | Same screen, answer revealed; score buttons, **Return to Board** | Correct response |
@@ -316,6 +319,8 @@ while the editor is up. Every shortcut is defined once in
 | Control, launch screen or any phase | ⌘D | **Show Display** (waiting screen until a game is picked) |
 | Control, Board | ⌘F | **Final Macpardy** |
 | Control, Board | ⌘→ | **Next Round** |
+| Control, Board | ← ↑ → ↓ | Move the highlight between open tiles (shown on the Display too) |
+| Control, Board | Return / Space | Open the highlighted clue |
 | Control, Question / Answer | ⌘B | **Return to Board** |
 | Control, Question | ⌘R | **Reveal Answer** (also Final question) |
 | Control, Question / Final | ⌘T | Start / pause the timer |
