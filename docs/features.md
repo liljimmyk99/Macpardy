@@ -163,6 +163,10 @@ A game works without phones. When the game starts, the app serves a page on the 
   Display and type the 6-character **Game PIN**; then pick a team. One phone per team; a
   claimed team's Join button is disabled for everyone else. A wrong PIN shows an error and
   the player can try again.
+- **Android + Chrome (#90):** if Chrome shows `ERR_TOO_MANY_RETRIES`, the phone hasn't let
+  Chrome reach local devices: allow **Nearby devices** in Settings › Apps › Chrome ›
+  Permissions. The join panels on Control and the Display say so. See
+  [buzzer-protocol.md](buzzer-protocol.md#android-chrome-shows-err_too_many_retries-90).
 - **Buzzing:** the buzzer is live only while a normal clue is shown. Buzzing early shows a
   "too early" message. On a Daily Double the button can't be pressed.
 - **First buzz:** the first buzz the Mac receives wins; buzzes within ~75 ms count as a tie,
