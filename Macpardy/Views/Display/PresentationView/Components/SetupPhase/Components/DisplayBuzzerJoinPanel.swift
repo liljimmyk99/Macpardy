@@ -17,6 +17,17 @@ struct DisplayBuzzerJoinPanel: View {
     let joinCode: String
 
     var body: some View {
+        VStack(spacing: 28) {
+            joinDetails
+            // Chrome on Android can't reach the Mac until the phone allows it (#90).
+            Label("display.setup.buzzer.android_tip", systemImage: "info.circle")
+                .font(.title3)
+                .foregroundStyle(MacpardyTheme.mutedText)
+                .multilineTextAlignment(.center)
+        }
+    }
+
+    private var joinDetails: some View {
         HStack(spacing: 48) {
             if let qrImage = QRCodeGenerator.image(from: joinURL.absoluteString, size: 600) {
                 Image(nsImage: qrImage)

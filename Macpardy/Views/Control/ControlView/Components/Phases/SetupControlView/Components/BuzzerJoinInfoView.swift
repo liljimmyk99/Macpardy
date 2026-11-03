@@ -58,6 +58,13 @@ struct BuzzerJoinInfoView: View {
                 Text("control.setup.buzzer.teams_with_phone \(teamsWithPhone) \(gameState.game.teams.count)")
                     .font(.callout)
                     .foregroundStyle(MacpardyTheme.mutedText)
+
+                // Chrome on Android can't reach the Mac until the phone allows it (#90).
+                Label("control.setup.buzzer.android_tip", systemImage: "info.circle")
+                    .font(.caption)
+                    .foregroundStyle(MacpardyTheme.mutedText)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
             } else if let error = buzzerState.startError {
                 Label {
                     Text("control.setup.buzzer.error \(error)")

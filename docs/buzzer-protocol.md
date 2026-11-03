@@ -652,6 +652,19 @@ Phones that never reach the Mac (wrong network, "Unable to find client" right af
 Join) leave no line, since the Mac never hears from them. Their report arrives once they
 connect successfully later.
 
+### Android: Chrome shows `ERR_TOO_MANY_RETRIES` (#90)
+
+Android can withhold local network access from an app. Without it, Chrome's connection to
+the Mac is refused on the phone (`ERR_LOCAL_NETWORK_PERMISSION_MISSING` in a
+`chrome://net-export` log). Chrome then asks Android for the permission, gets an immediate
+"no" with no prompt, retries, and gives up with `ERR_TOO_MANY_RETRIES`. The Mac logs nothing,
+not even a `TCP connection from` debug line, while another browser on the same phone (e.g.
+Samsung Internet) loads the page fine.
+
+Fix on the phone: **Settings › Apps › Chrome › Permissions**, allow **Nearby devices** (named
+**Local network** on some Android versions), then reopen Chrome. Nothing on the Mac side
+changes this. The setup panel on Control and the Display join panel both show this tip.
+
 ## Port
 
 (With **Use phone buzzers** off in Settings > Buzzers, the server doesn't start at all.)

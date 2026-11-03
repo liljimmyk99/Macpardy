@@ -1719,6 +1719,18 @@
         }
       }
     },
+    "control.setup.buzzer.android_tip" : {
+      "comment" : "Setup buzzer panel: help for Android phones where Chrome lacks the local network permission (#90)",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Android phone shows ERR_TOO_MANY_RETRIES in Chrome? On the phone, open Settings › Apps › Chrome › Permissions, allow Nearby devices, then reopen Chrome."
+          }
+        }
+      }
+    },
     "control.setup.buzzer.copy_url" : {
       "comment" : "Tooltip on the buzzer URL button that copies it",
       "extractionState" : "manual",
@@ -3439,6 +3451,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Question image"
+          }
+        }
+      }
+    },
+    "display.setup.buzzer.android_tip" : {
+      "comment" : "Display join panel: help for Android phones where Chrome lacks the local network permission (#90)",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Android: page won't open in Chrome? Go to Settings › Apps › Chrome › Permissions and allow Nearby devices."
           }
         }
       }
