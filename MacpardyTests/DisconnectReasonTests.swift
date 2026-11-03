@@ -43,6 +43,7 @@ final class DisconnectReasonTests: XCTestCase {
             .joinRejected(.invalidCode),
             .removedByHost,
             .serverStopped,
+            .replacedByNewConnection,
         ]
         let descriptions = reasons.map(\.description)
         XCTAssertEqual(Set(descriptions).count, reasons.count)
@@ -64,6 +65,7 @@ final class DisconnectReasonTests: XCTestCase {
     func testExpectedEndingsAreInfoAndProblemsAreWarnings() {
         XCTAssertEqual(DisconnectReason.removedByHost.logLevel, .info)
         XCTAssertEqual(DisconnectReason.serverStopped.logLevel, .info)
+        XCTAssertEqual(DisconnectReason.replacedByNewConnection.logLevel, .info)
         XCTAssertEqual(DisconnectReason.phoneClosed(code: 1001).logLevel, .info)
         XCTAssertEqual(DisconnectReason.phoneClosed(code: nil).logLevel, .warning)
         XCTAssertEqual(DisconnectReason.heartbeatTimeout(sinceLastPong: 6).logLevel, .warning)

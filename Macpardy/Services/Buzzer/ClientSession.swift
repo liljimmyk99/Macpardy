@@ -44,6 +44,10 @@ nonisolated final class ClientSession: Identifiable, @unchecked Sendable {
     /// The browser's User-Agent header from the WebSocket handshake, if sent.
     nonisolated let userAgent: String?
 
+    /// The page's `device` id from its `join`, if it sent a usable one.
+    /// Always mutated from within the BuzzerServer actor.
+    var deviceID: String?
+
     /// The last team this phone held. Kept after the claim is released so the
     /// disconnect line can still name the team.
     var claimedTeamName: String?
