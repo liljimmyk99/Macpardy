@@ -124,7 +124,7 @@ extension LogsView {
 
             Picker("logs.picker.level", selection: $filter.minimumLevel) {
                 ForEach(LogLevel.allCases, id: \.self) { level in
-                    Label(level.titleKey, systemImage: level.symbolName).tag(level)
+                    Text(level.titleKey).tag(level)
                 }
             }
             .pickerStyle(.menu)
@@ -201,23 +201,29 @@ extension LogsView {
 // MARK: - Labels
 
 extension LogCategory {
+    /// A literal key per case: String Catalog lookup needs a fixed key,
+    /// not one built by interpolating `rawValue` at runtime.
     var titleKey: LocalizedStringKey {
-        LocalizedStringKey("logs.category.\(rawValue)")
+        switch self {
+        case .control: "logs.category.control"
+        case .display: "logs.category.display"
+        case .storage: "logs.category.storage"
+        case .buzzer: "logs.category.buzzer"
+        case .network: "logs.category.network"
+        }
     }
 }
 
 extension LogLevel {
+    /// A literal key per case: String Catalog lookup needs a fixed key,
+    /// not one built by interpolating `rawValue` at runtime.
     var titleKey: LocalizedStringKey {
-        LocalizedStringKey("logs.level.\(rawValue)")
-    }
-
-    var symbolName: String {
         switch self {
-        case .debug: "ant"
-        case .info: "info.circle"
-        case .notice: "bell"
-        case .warning: "exclamationmark.triangle.fill"
-        case .error: "xmark.octagon.fill"
+        case .debug: "logs.level.debug"
+        case .info: "logs.level.info"
+        case .notice: "logs.level.notice"
+        case .warning: "logs.level.warning"
+        case .error: "logs.level.error"
         }
     }
 

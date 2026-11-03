@@ -17,8 +17,9 @@ nonisolated enum LogSource: Hashable, Sendable {
 
 nonisolated struct LogFilter: Equatable, Sendable {
 
-    /// nil shows every category. The window opens on Buzzer.
-    var category: LogCategory? = .buzzer
+    /// nil shows every category, so the window opens with both the
+    /// buzzer server's logs and the application's own logs visible.
+    var category: LogCategory? = nil
     var minimumLevel: LogLevel = .info
     var searchText = ""
     /// nil shows every team (and lines about no team).

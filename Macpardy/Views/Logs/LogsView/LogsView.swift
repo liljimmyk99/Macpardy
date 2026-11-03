@@ -3,7 +3,7 @@
 //  Macpardy
 //
 //  The Logs window (#81): this run's log live, or an earlier run's saved
-//  file, filtered by category, level, team and text. Opens on Buzzer.
+//  file, filtered by category, level, team and text.
 //
 
 import SwiftUI

@@ -2,7 +2,7 @@
 //  LogRow.swift
 //  Macpardy
 //
-//  One log line: time, level, category, message.
+//  One log line: time, category, message.
 //
 
 import SwiftUI
@@ -12,7 +12,7 @@ struct LogRow: View {
     let entry: LogEntry
 
     private static let timeFormat = Date.VerbatimFormatStyle(
-        format: "\(hour: .twoDigits(clock: .twentyFourHour, hourCycle: .zeroBased)):\(minute: .twoDigits):\(second: .twoDigits).\(secondFraction: .fractional(3))",
+        format: "\(hour: .twoDigits(clock: .twelveHour, hourCycle: .oneBased)):\(minute: .twoDigits):\(second: .twoDigits) \(dayPeriod: .standard(.abbreviated))",
         timeZone: .current,
         calendar: Calendar(identifier: .gregorian)
     )
@@ -22,17 +22,13 @@ struct LogRow: View {
             Text(entry.date, format: Self.timeFormat)
                 .font(MacpardyTheme.logMetaFont)
                 .foregroundStyle(.secondary)
-
-            Image(systemName: entry.level.symbolName)
-                .font(MacpardyTheme.logMetaFont)
-                .foregroundStyle(entry.level.color)
-                .frame(width: 14)
-                .help(Text(entry.level.titleKey))
+                .frame(width: 84, alignment: .leading)
 
             Text(entry.category.titleKey)
                 .font(MacpardyTheme.logMetaFont)
                 .foregroundStyle(.secondary)
-                .frame(width: 64, alignment: .leading)
+                .lineLimit(1)
+                .frame(width: 90, alignment: .leading)
 
             Text(verbatim: entry.message)
                 .font(MacpardyTheme.logFont)

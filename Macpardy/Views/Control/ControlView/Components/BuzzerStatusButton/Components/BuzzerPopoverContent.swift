@@ -22,7 +22,7 @@ extension BuzzerStatusButton {
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 16)
 
-            // Why a phone dropped: opens the Logs window on the Buzzer filter (#81).
+            // Why a phone dropped: opens the Logs window (#81).
             Button("control.buzzer.popover.view_logs", systemImage: "doc.text.magnifyingglass") {
                 openWindow(id: "logs")
             }
