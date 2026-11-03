@@ -70,6 +70,7 @@ final class ShortcutCatalogTests: XCTestCase {
         XCTAssertEqual(AppShortcut.resetTimer.glyph, "⌘←")
         XCTAssertEqual(AppShortcut.toggleTimer.glyph, "⌘T")
         XCTAssertEqual(AppShortcut.showLogs.glyph, "⌥⌘L")
+        XCTAssertEqual(AppShortcut.joinScreen.glyph, "⌘J")
     }
 
     func testEveryAreaTitleIsLocalized() {

@@ -99,7 +99,7 @@ Macpardy/
 │   │   └── NewGameView/              New Game sheet: editor or CSV import
 │   ├── Display/
 │   │   ├── PresentationView/     TV/projector screen (animated, see MacpardyMotion): board, question, answer, Daily
-│   │   │                         Double, Final, timer, scoreboard
+│   │   │                         Double, Final, timer, scoreboard, mid-game join screen
 │   │   └── WaitingForGameView/   Display screen while no game is selected
 │   ├── Logs/
 │   │   └── LogsView/             Logs window: run / category / level / team filters, search,
@@ -123,7 +123,7 @@ ControlView/
 └── Components/
     ├── ControlViewContent.swift  Switches the content on GamePhase
     ├── ControlToolbar.swift      Buzzers, Show Display, Final Macpardy, Next Round
-    ├── BuzzerStatusButton/       Toolbar button + popover: join info, phone per team, remove phone
+    ├── BuzzerStatusButton/       Toolbar button + popover: join info, join screen on Display, phone per team, remove phone
     ├── TeamScoreStripView/       Team scores along the bottom: ±100 on the board, ✓/✗ on a clue, reset via context menu
     ├── Phases/                   One folder per phase
     │   ├── SetupControlView/         Team cards (name, color swatches), buzzer join panel, Start Game

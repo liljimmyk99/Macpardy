@@ -262,6 +262,8 @@ struct MacpardyApp: App {
         }
         // Wagering is open exactly while the Final category is displayed.
         .onChange(of: gameState.phase) { _, phase in
+            // The join screen covers one screen only; the next phase shows normally (#83).
+            buzzerState.isJoinScreenOnDisplay = false
             Task { await syncWagering() }
             SoundPlayer.shared.handle(phase: phase)
         }

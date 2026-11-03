@@ -105,7 +105,12 @@ run along the bottom with ±100 buttons (right-click a team to reset its score).
 The **Buzzers** button shows the Game PIN and how many teams have a phone; its dot turns orange
 when a phone stops responding. It opens a popover with the QR code, Game PIN, the page address
 (the copy button copies the full link with the PIN), and
-each team's phone status with **Remove phone**. The Display window, opened with
+each team's phone status with **Remove phone**. **Show Join Screen on Display** (⌘J, also in the
+**Game** menu) puts the QR code, page address, Game PIN and each team's phone status over
+whatever the Display shows, so a late or dropped phone can join mid-game; a TV icon on the
+Buzzers button shows it's up. It comes down when pressed again, when the phase changes (opening
+a clue, returning to the board, …), or when the buzzer server stops. Setup already shows it, so
+the button is greyed out there. The Display window, opened with
 **Show Display** (⌘D), mirrors the phase full-screen with a scoreboard along the bottom. ⌘D
 works from the launch screen too: until a game is picked, the Display shows a "Waiting for the
 host to start a game…" screen, so it can go up on the TV early.
@@ -174,6 +179,8 @@ A game works without phones. When the game starts, the app serves a page on the 
   are trimmed to one line, at most 200 characters. Only the host sees them until they show
   one on the Display. Teams that never had a phone get no answer row, so games without
   buzzers look as before.
+- **Joining mid-game (#83):** the host can put the join screen on the Display at any time
+  after setup (see §3); the Game PIN is the same one the game started with.
 - **Connection:** a phone that stops answering for 5 s counts as disconnected; the Control
   and Display windows flag the team. The phone goes back to the Game PIN screen with its PIN
   filled in and a dismissible "Unable to find client" toast; tapping **Join** rejoins. It
@@ -302,6 +309,7 @@ while the editor is up. Every shortcut is defined once in
 | Any window | ⌘/ | Open **Keyboard Shortcuts** |
 | Any window | ⌥⌘L | Open **Logs** |
 | Control, any phase in a game (buzzers on) | ⌘⇧B | Open the **Buzzers** popover |
+| Control, any phase after setup (buzzers on) | ⌘J | Show / hide the **join screen** on the Display |
 | Control, launch screen or any phase | ⌘D | **Show Display** (waiting screen until a game is picked) |
 | Control, Board | ⌘F | **Final Macpardy** |
 | Control, Board | ⌘→ | **Next Round** |

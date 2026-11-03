@@ -53,6 +53,19 @@ final class GameCommandAvailabilityTests: XCTestCase {
         }
     }
 
+    func testJoinScreenCanShowOverEveryPhaseButSetup() {
+        for phase in GamePhase.allCases {
+            XCTAssertEqual(availability(phase).canShowJoinScreen, phase != .setup, "\(phase)")
+        }
+    }
+
+    func testJoinScreenNeedsBuzzersOn() {
+        for phase in GamePhase.allCases {
+            let off = GameCommandAvailability(phase: phase, hasSelectedGame: true, buzzersEnabled: false)
+            XCTAssertFalse(off.canShowJoinScreen)
+        }
+    }
+
     func testOnlyTheDisplayIsEnabledWithoutAGame() {
         for phase in GamePhase.allCases {
             let none = availability(phase, hasGame: false)
@@ -62,6 +75,7 @@ final class GameCommandAvailabilityTests: XCTestCase {
             XCTAssertFalse(none.canRevealAnswer)
             XCTAssertFalse(none.canControlTimer)
             XCTAssertFalse(none.canOpenBuzzers)
+            XCTAssertFalse(none.canShowJoinScreen)
         }
     }
 

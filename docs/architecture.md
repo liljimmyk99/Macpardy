@@ -204,6 +204,10 @@ Code: `Services/Buzzer/`. Protocol: [buzzer-protocol.md](buzzer-protocol.md).
   `sessionEnded` to joined phones first so they return to their Game PIN screen.
   `BuzzerState` resolves the Mac's local IPv4 address and builds the bare page address
   (`baseURL`, shown as text) and the join link with `?code=` (`serverURL`, QR code and Copy).
+- **Join screen (#83):** `BuzzerState.isJoinScreenOnDisplay` puts the setup screen's join
+  panel (`PresentationView.buzzerJoinContent()`) over any later phase on the Display. It's UI
+  state, never saved; `MacpardyApp` clears it on every phase change and `stopServer()` clears
+  it too. `GameCommandAvailability.canShowJoinScreen` gates the popover button and ⌘J.
 - **App → server:** `MacpardyApp` watches `GameState` and pushes teams, scores, the buzzer
   mode (`armed` on a normal question, `unavailable` on Daily Double, `disabled` otherwise), and
   Final wagering open/closed (open exactly while `phase == .finalMacpardyCategory`), and
