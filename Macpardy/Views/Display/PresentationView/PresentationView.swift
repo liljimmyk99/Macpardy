@@ -14,6 +14,8 @@ struct PresentationView: View {
     @Environment(\.accessibilityReduceMotion) var reduceMotion
     @AppStorage(AppSettings.Key.animationsEnabled)
     var animationsSetting = AppSettings.defaultAnimationsEnabled
+    @AppStorage(AppSettings.Key.buzzersEnabled)
+    var buzzersEnabled = AppSettings.defaultBuzzersEnabled
 
     var animates: Bool {
         AppSettings.shouldAnimate(setting: animationsSetting, reduceMotion: reduceMotion)

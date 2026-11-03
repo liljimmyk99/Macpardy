@@ -599,6 +599,8 @@ connect successfully later.
 
 ## Port
 
+(With **Use phone buzzers** off in Settings > Buzzers, the server doesn't start at all.)
+
 The server listens on port **8472** by default. The host can change it in **Settings > Buzzers**
 (1024–65535); it is read once when the server starts, so a change applies to the next game, and
 the join URL and QR code are built from the port actually in use. If the port is taken, the

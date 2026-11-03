@@ -8,10 +8,12 @@
 import SwiftUI
 
 /// Team cards on the left, phone buzzer join info and Start Game on the right.
+/// With buzzers off (#74), the right side only notes that and offers Start Game.
 struct SetupControlView: View {
 
     @Environment(GameState.self) var gameState
     @Environment(BuzzerState.self) var buzzerState
+    @AppStorage(AppSettings.Key.buzzersEnabled) var buzzersEnabled = AppSettings.defaultBuzzersEnabled
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
@@ -21,9 +23,13 @@ struct SetupControlView: View {
             }
 
             VStack(spacing: 4) {
-                sectionHeader("control.setup.buzzer.title")
+                sectionHeader(buzzersEnabled ? "control.setup.buzzer.title" : "control.setup.no_buzzers.title")
                 VStack(spacing: 18) {
-                    BuzzerJoinInfoView()
+                    if buzzersEnabled {
+                        BuzzerJoinInfoView()
+                    } else {
+                        buzzersOffNotice()
+                    }
                     Spacer(minLength: 0)
                     startGameButton()
                 }

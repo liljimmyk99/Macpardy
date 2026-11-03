@@ -44,6 +44,15 @@ final class GameCommandAvailabilityTests: XCTestCase {
         XCTAssertTrue(availability(.finalMacpardyAnswer).canControlTimer)
     }
 
+    func testBuzzersCanOpenOnlyWhenTurnedOn() {
+        for phase in GamePhase.allCases {
+            XCTAssertTrue(availability(phase).canOpenBuzzers)
+            let off = GameCommandAvailability(phase: phase, hasSelectedGame: true, buzzersEnabled: false)
+            XCTAssertFalse(off.canOpenBuzzers)
+            XCTAssertTrue(off.canShowDisplay)
+        }
+    }
+
     func testNothingIsEnabledWithoutAGame() {
         for phase in GamePhase.allCases {
             let none = availability(phase, hasGame: false)

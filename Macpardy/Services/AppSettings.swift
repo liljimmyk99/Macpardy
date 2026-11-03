@@ -17,6 +17,7 @@ nonisolated enum AppSettings {
         static let defaultTeamCount = "settings.game.defaultTeamCount"
         static let teamNamePrefix = "settings.game.teamName."
         static let buzzerPort = "settings.buzzers.port"
+        static let buzzersEnabled = "settings.buzzers.enabled"
         static let animationsEnabled = "settings.display.animationsEnabled"
     }
 
@@ -102,6 +103,16 @@ nonisolated enum AppSettings {
     }
 
     // MARK: - Buzzer server
+
+    /// Off means a game without phones (#74): no server, no join code or QR.
+    static let defaultBuzzersEnabled = true
+
+    static func buzzersEnabled(_ defaults: UserDefaults = .standard) -> Bool {
+        guard let stored = defaults.object(forKey: Key.buzzersEnabled) as? Bool else {
+            return defaultBuzzersEnabled
+        }
+        return stored
+    }
 
     static let portRange = 1024...65535
     static let defaultBuzzerPort = 8472

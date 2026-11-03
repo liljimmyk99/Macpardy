@@ -12,6 +12,9 @@ extension PresentationView {
                     teams: gameState.game.teams,
                     connectedTeamIDs: buzzerState.claimedTeamIDs
                 )
+            } else if !buzzersEnabled {
+                // No phones this game (#74): just the teams, no join code or QR.
+                DisplayTeamConnectionRow(teams: gameState.game.teams, connectedTeamIDs: nil)
             } else {
                 Text("display.setup.waiting")
                     .font(.title2)

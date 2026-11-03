@@ -193,7 +193,9 @@ Code: `Services/Buzzer/`. Protocol: [buzzer-protocol.md](buzzer-protocol.md).
 ```
 
 - **Server lifecycle:** started when a game is selected, stopped when the app returns to the
-  launch screen, restarted (new join code) on Complete Game or resume. Stopping sends
+  launch screen, restarted (new join code) on Complete Game or resume. `startServer()` does
+  nothing while `AppSettings.buzzersEnabled()` is off, and `MacpardyApp` starts / stops the
+  server when the setting changes during a game. Stopping sends
   `sessionEnded` to joined phones first so they return to their Game PIN screen.
   `BuzzerState` resolves the Mac's local IPv4 address and builds the bare page address
   (`baseURL`, shown as text) and the join link with `?code=` (`serverURL`, QR code and Copy).

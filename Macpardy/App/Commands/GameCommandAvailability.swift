@@ -10,6 +10,8 @@ struct GameCommandAvailability: Equatable {
 
     let phase: GamePhase
     let hasSelectedGame: Bool
+    /// The Buzzers setting; off means no phones this game (#74).
+    var buzzersEnabled = true
 
     var canReturnToBoard: Bool {
         hasSelectedGame && (phase == .question || phase == .answer)
@@ -30,5 +32,5 @@ struct GameCommandAvailability: Equatable {
 
     var canShowDisplay: Bool { hasSelectedGame }
 
-    var canOpenBuzzers: Bool { hasSelectedGame }
+    var canOpenBuzzers: Bool { hasSelectedGame && buzzersEnabled }
 }
