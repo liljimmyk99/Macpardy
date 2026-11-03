@@ -365,6 +365,24 @@ final class GameState {
         self.finalMacpardyRevealedTeamID = nil
     }
 
+    /// Ends a finished game (#82): timers stop, nothing more is auto-saved,
+    /// and the phase goes back to setup. The app then returns to the launch
+    /// screen and clears the save.
+    func endGame() {
+        clearScoreUndo()
+        pendingSaveTask?.cancel()
+        pendingSaveTask = nil
+        cancelResponse()
+        timer.stop()
+        phase = .setup
+        currentQuestion = nil
+        currentCategoryTitle = nil
+        dailyDoubleTeamID = nil
+        dailyDoubleWager = 0
+        finalMacpardyRevealedTeamID = nil
+        boardIntroPending = false
+    }
+
     func addTeam(name: String = "", color: String = "blue") {
         guard game.teams.count < Team.maxCount else { return }
         let count = game.teams.count + 1

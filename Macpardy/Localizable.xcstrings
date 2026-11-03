@@ -3527,6 +3527,18 @@
         }
       }
     },
+    "display.waiting_for_game" : {
+      "comment" : "Message on the Display window while no game is selected, before one is picked or after a game is completed",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for the host to start a game…"
+          }
+        }
+      }
+    },
     "edit.alert.not_now_action" : {
       "comment" : "Button to close the editor without playing the saved board",
       "extractionState" : "manual",
