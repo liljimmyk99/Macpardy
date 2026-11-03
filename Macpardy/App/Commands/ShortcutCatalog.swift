@@ -26,7 +26,7 @@ nonisolated enum AppShortcut: String, CaseIterable, Identifiable {
     // Editor
     case saveGame
     // Game
-    case returnToBoard, nextRound, finalMacpardy, revealAnswer, showDisplay, buzzers
+    case returnToBoard, nextRound, finalMacpardy, revealAnswer, showDisplay, buzzers, joinScreen
     // Timer
     case toggleTimer, resetTimer, timerMinus5, timerPlus5
     // Provided by macOS, listed so the Keyboard Shortcuts window is complete.
@@ -49,6 +49,7 @@ nonisolated enum AppShortcut: String, CaseIterable, Identifiable {
         case .revealAnswer: "control.question.button.reveal_answer"
         case .showDisplay: "control.toolbar.show_display"
         case .buzzers: "menu.game.buzzers"
+        case .joinScreen: "menu.game.join_screen"
         case .toggleTimer: "menu.game.timer.toggle"
         case .resetTimer: "menu.game.timer.reset"
         case .timerMinus5: "menu.game.timer.minus_5"
@@ -74,6 +75,7 @@ nonisolated enum AppShortcut: String, CaseIterable, Identifiable {
         case .finalMacpardy: "f"
         case .revealAnswer: "r"
         case .showDisplay: "d"
+        case .joinScreen: "j"
         case .toggleTimer: "t"
         case .resetTimer: .leftArrow
         case .timerMinus5: "-"
@@ -101,7 +103,7 @@ nonisolated enum AppShortcut: String, CaseIterable, Identifiable {
         switch self {
         case .newBoard, .importBoard: .file
         case .saveGame: .editor
-        case .returnToBoard, .nextRound, .finalMacpardy, .revealAnswer, .showDisplay, .buzzers: .game
+        case .returnToBoard, .nextRound, .finalMacpardy, .revealAnswer, .showDisplay, .buzzers, .joinScreen: .game
         case .toggleTimer, .resetTimer, .timerMinus5, .timerPlus5: .timer
         case .settings: .app
         case .undo, .redo: .edit

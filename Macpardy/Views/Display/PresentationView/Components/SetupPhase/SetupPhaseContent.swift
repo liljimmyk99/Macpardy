@@ -6,12 +6,8 @@ extension PresentationView {
             Spacer()
             GameTitleView(title: "Macpardy!")
 
-            if buzzerState.isRunning, let url = buzzerState.serverURL, let baseURL = buzzerState.baseURL {
-                DisplayBuzzerJoinPanel(joinURL: url, baseURL: baseURL, joinCode: buzzerState.joinCode)
-                DisplayTeamConnectionRow(
-                    teams: gameState.game.teams,
-                    connectedTeamIDs: buzzerState.claimedTeamIDs
-                )
+            if buzzerState.isRunning {
+                buzzerJoinContent()
             } else if !buzzersEnabled {
                 // No phones this game (#74): just the teams, no join code or QR.
                 DisplayTeamConnectionRow(teams: gameState.game.teams, connectedTeamIDs: nil)
@@ -25,5 +21,18 @@ extension PresentationView {
         .padding(.horizontal, 40)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(MacpardyTheme.boardBlue)
+    }
+
+    /// QR code, page address and Game PIN, then each team's phone status. Shown
+    /// during setup and on the join screen the host can put up mid-game (#83).
+    @ViewBuilder
+    func buzzerJoinContent() -> some View {
+        if let url = buzzerState.serverURL, let baseURL = buzzerState.baseURL {
+            DisplayBuzzerJoinPanel(joinURL: url, baseURL: baseURL, joinCode: buzzerState.joinCode)
+            DisplayTeamConnectionRow(
+                teams: gameState.game.teams,
+                connectedTeamIDs: buzzerState.claimedTeamIDs
+            )
+        }
     }
 }

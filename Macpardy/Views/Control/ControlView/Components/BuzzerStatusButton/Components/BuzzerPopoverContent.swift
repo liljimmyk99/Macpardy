@@ -7,6 +7,9 @@ extension BuzzerStatusButton {
             joinHeader()
                 .padding(16)
 
+            joinScreenToggle()
+                .padding([.horizontal, .bottom], 16)
+
             Divider()
 
             VStack(spacing: 2) {
@@ -32,6 +35,23 @@ extension BuzzerStatusButton {
             .padding(.top, 8)
         }
         .frame(width: 380)
+    }
+
+    /// Puts the join screen on the Display over the current phase, or takes it down (#83).
+    private func joinScreenToggle() -> some View {
+        Button {
+            buzzerState.isJoinScreenOnDisplay.toggle()
+        } label: {
+            Label(
+                buzzerState.isJoinScreenOnDisplay ? "control.buzzer.popover.hide_join_screen" : "control.buzzer.popover.show_join_screen",
+                systemImage: buzzerState.isJoinScreenOnDisplay ? "tv.slash" : "tv"
+            )
+            .frame(maxWidth: .infinity)
+        }
+        .controlSize(.large)
+        .disabled(!canShowJoinScreen)
+        .help(Text(canShowJoinScreen ? "control.buzzer.popover.join_screen.help" : "control.buzzer.popover.join_screen.setup_help")
+            + Text(verbatim: " (\(AppShortcut.joinScreen.glyph))"))
     }
 
     @ViewBuilder

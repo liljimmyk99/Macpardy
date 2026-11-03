@@ -64,6 +64,13 @@ final class SessionLifecycleTests: XCTestCase {
         XCTAssertTrue(buzzer.claimedTeamIDs.isEmpty)
     }
 
+    func testStoppingTheServerTakesDownTheJoinScreen() async {
+        let buzzer = BuzzerState()
+        buzzer.isJoinScreenOnDisplay = true
+        await buzzer.stopServer()
+        XCTAssertFalse(buzzer.isJoinScreenOnDisplay, "no join screen without a Game PIN")
+    }
+
     func testJoinURLsShowBareAddressAndQRLinkWithCode() throws {
         let urls = try XCTUnwrap(BuzzerState.joinURLs(ip: "192.168.1.20", port: 8472, code: "AB3XYZ"))
         XCTAssertEqual(urls.base.absoluteString, "http://192.168.1.20:8472")

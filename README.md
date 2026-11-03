@@ -33,6 +33,7 @@ Full walkthrough: [docs/features.md](docs/features.md).
 | ⌘D | **Show Display** |
 | ⌘B | **Return to Board** (on a clue) |
 | ⌘⇧B | **Buzzers** popover (when buzzers are on) |
+| ⌘J | Show / hide the buzzer **join screen** on the Display (mid-game, when buzzers are on) |
 | ⌘F | **Final Macpardy** (from the board) |
 | ⌘→ | **Next Round** (from the board) |
 | ⌘← | Reset the timer |

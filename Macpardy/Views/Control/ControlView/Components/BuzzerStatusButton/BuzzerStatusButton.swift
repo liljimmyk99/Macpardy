@@ -25,6 +25,12 @@ struct BuzzerStatusButton: View {
                     .fill(statusColor)
                     .frame(width: 8, height: 8)
                 Text(title)
+                if buzzerState.isJoinScreenOnDisplay {
+                    // The room is looking at the join screen, not the game (#83).
+                    Image(systemName: "tv")
+                        .foregroundStyle(MacpardyTheme.gold)
+                        .help("control.toolbar.buzzers.join_screen_on")
+                }
             }
         }
         .help(Text("control.toolbar.buzzers.help") + Text(verbatim: " (\(AppShortcut.buzzers.glyph))"))

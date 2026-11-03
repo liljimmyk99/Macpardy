@@ -54,6 +54,10 @@ final class BuzzerState {
     /// Whether the toolbar's Buzzers popover is open. Lives here so the Game menu can open it.
     var isPopoverPresented = false
 
+    /// Whether the Display shows the join screen (QR code, address, Game PIN) over
+    /// the current phase (#83). Turned off when the phase changes or the server stops.
+    var isJoinScreenOnDisplay = false
+
     // MARK: - Private
 
     private var wagerObserverTask: Task<Void, Never>?
@@ -287,6 +291,7 @@ final class BuzzerState {
         connectedClientCount = 0
         claimedTeamIDs = []
         everClaimedTeamIDs = []
+        isJoinScreenOnDisplay = false
     }
 
     /// Broadcasts the current game phase to all connected phones.

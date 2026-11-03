@@ -90,6 +90,12 @@ struct GameCommands: Commands {
             }
             .keyboardShortcut(.buzzers)
             .disabled(!availability.canOpenBuzzers)
+
+            Button(buzzerState.isJoinScreenOnDisplay ? "menu.game.join_screen.hide" : "menu.game.join_screen.show") {
+                buzzerState.isJoinScreenOnDisplay.toggle()
+            }
+            .keyboardShortcut(.joinScreen)
+            .disabled(!availability.canShowJoinScreen)
         }
     }
 }

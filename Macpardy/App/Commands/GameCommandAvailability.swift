@@ -33,4 +33,7 @@ struct GameCommandAvailability: Equatable {
     var canShowDisplay: Bool { hasSelectedGame }
 
     var canOpenBuzzers: Bool { hasSelectedGame && buzzersEnabled }
+
+    /// The join screen can go over any phase but setup, which already shows it (#83).
+    var canShowJoinScreen: Bool { canOpenBuzzers && phase != .setup }
 }
