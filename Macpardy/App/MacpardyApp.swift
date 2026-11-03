@@ -33,10 +33,17 @@ final class MacpardyAppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         let session = BoardEditorSession.shared
-        guard session.hasUnsavedEdits else { return .terminateNow }
+        guard session.hasUnsavedEdits else {
+            AppLogger.control.app("quit requested (no unsaved edits → quitting)")
+            return .terminateNow
+        }
 
         // A prompt is already up (e.g. from closing the window); let the user answer it.
-        guard session.requestClose(.quitApp) else { return .terminateCancel }
+        guard session.requestClose(.quitApp) else {
+            AppLogger.control.app("quit requested (a save prompt is already up → cancelled)")
+            return .terminateCancel
+        }
+        AppLogger.control.app("quit requested (unsaved edits → prompt)")
 
         session.onQuitDecision = { proceed in
             sender.reply(toApplicationShouldTerminate: proceed)
@@ -85,9 +92,13 @@ struct MacpardyApp: App {
     @AppStorage(AppSettings.Key.buzzersEnabled)
     private var buzzersEnabled = AppSettings.defaultBuzzersEnabled
 
+    @Environment(\.scenePhase) private var scenePhase
+
     init() {
         LogCenter.shared.start()
         AppLogger.control.info("\(SystemInfoReport.appDescription) launched on \(SystemInfoReport.osDescription)")
+        AppLogger.control.app("launch \(SystemInfoReport.appDescription) \(SystemInfoReport.osDescription) \(SystemInfoReport.macModel)")
+        SettingsChangeLog.shared.start()
     }
 
     private var buzzerTeams: [BuzzerTeam] {
@@ -195,11 +206,18 @@ struct MacpardyApp: App {
             }
             // Double-clicking a .macpardy board in Finder opens it here.
             .onOpenURL { url in
+                AppLogger.control.app("asked to open \(url.lastPathComponent) (Finder)")
                 boardOpenCoordinator.open(url: url)
             }
+            .logWindowLifecycle("Control")
         }
         .defaultSize(width: 1200, height: 900)
-        .onChange(of: hasSelectedGame) { _, selected in
+        .onChange(of: scenePhase) { old, new in
+            AppLogger.control.app("scenePhase \(old) → \(new)")
+        }
+        .onChange(of: hasSelectedGame) { old, selected in
+            AppLogger.control.change("App.hasSelectedGame", from: old, to: selected)
+            AppLogger.control.nav("Control shows \(selected ? "the game" : "the launch screen")")
             if selected {
                 Task {
                     await buzzerState.syncTeams(buzzerTeams)
@@ -284,13 +302,16 @@ struct MacpardyApp: App {
         }
 
         Window("Display", id: "display") {
-            if hasSelectedGame {
-                PresentationView()
-                    .environment(gameState)
-                    .environment(buzzerState)
-            } else {
-                WaitingForGameView()
+            Group {
+                if hasSelectedGame {
+                    PresentationView()
+                        .environment(gameState)
+                        .environment(buzzerState)
+                } else {
+                    WaitingForGameView()
+                }
             }
+            .logWindowLifecycle("Display", category: .display)
         }
         .defaultSize(width: 1920, height: 1080)
         .defaultLaunchBehavior(.suppressed)
@@ -298,11 +319,13 @@ struct MacpardyApp: App {
 
         Settings {
             SettingsView()
+                .logWindowLifecycle("Settings")
         }
 
         Window("shortcuts.window.title", id: "shortcuts") {
             KeyboardShortcutsView()
                 .windowFullScreenBehavior(.disabled)
+                .logWindowLifecycle("Keyboard Shortcuts")
         }
         .windowResizability(.contentSize)
         .defaultLaunchBehavior(.suppressed)
@@ -313,6 +336,7 @@ struct MacpardyApp: App {
                 .environment(LogCenter.shared)
                 .environment(gameState)
                 .environment(buzzerState)
+                .logWindowLifecycle("Logs")
         }
         .defaultSize(width: 1000, height: 640)
         .defaultLaunchBehavior(.suppressed)
@@ -322,6 +346,7 @@ struct MacpardyApp: App {
             CreateMacpardyGameView()
                 .environment(editorSession)
                 .windowFullScreenBehavior(.disabled)
+                .logWindowLifecycle("Board editor")
         }
         .defaultSize(width: 1400, height: 820)
         .defaultLaunchBehavior(.suppressed)

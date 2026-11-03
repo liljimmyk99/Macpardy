@@ -37,14 +37,24 @@ final class BoardEditorSession {
 
     /// Boards the user chose to play after saving an edit. The app starts
     /// the game and clears this.
-    var boardsToPlay: [MacpardyBoard]?
+    var boardsToPlay: [MacpardyBoard]? {
+        didSet {
+            if let boardsToPlay { log.state("BoardEditorSession: play edited board (\(boardsToPlay.count) rounds)") }
+        }
+    }
 
     /// Whether an edited board has changes that haven't been saved. Kept up
     /// to date by the editor; only edits of existing boards count.
-    var hasUnsavedEdits = false
+    var hasUnsavedEdits = false {
+        didSet { log.change("BoardEditorSession.hasUnsavedEdits", from: oldValue, to: hasUnsavedEdits) }
+    }
 
     /// A close or quit waiting on the user's "save changes?" answer.
-    private(set) var closeRequest: CloseRequest?
+    private(set) var closeRequest: CloseRequest? {
+        didSet { log.change("BoardEditorSession.closeRequest", from: oldValue, to: closeRequest) }
+    }
+
+    private let log = AppLogger.control
 
     /// The editor's window, so a quit can bring it forward for the prompt.
     @ObservationIgnored
@@ -56,6 +66,7 @@ final class BoardEditorSession {
 
     /// Queues `draft` for the editor.
     func edit(_ draft: BoardDraft, suggestedFilename: String? = nil) {
+        log.state("BoardEditorSession: board '\(draft.trimmedTitle)' queued for the editor\(suggestedFilename.map { " (save as \($0))" } ?? "")")
         pendingDraft = draft
         pendingSuggestedFilename = suggestedFilename
         editRequest += 1
@@ -86,6 +97,7 @@ final class BoardEditorSession {
     /// should go ahead; a quit is answered here, a window close by the editor.
     func finishClose(proceed: Bool) {
         let request = closeRequest
+        log.state("BoardEditorSession: \(request.map { "\($0)" } ?? "close") \(proceed ? "goes ahead" : "cancelled")")
         closeRequest = nil
         if request == .quitApp {
             onQuitDecision?(proceed)

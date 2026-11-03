@@ -13,10 +13,12 @@ struct QuestionTileButtonView: View {
     var isUnfilled: Bool = false
     var isDailyDouble: Bool = false
     var hasImage: Bool = false
+    /// Where the click is logged, e.g. "Editor › R1 C2 row 3".
+    var log = "Editor › Tile"
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
+        LoggedButton(log: log, action: action) {
             ZStack(alignment: .topTrailing) {
                 Rectangle()
                     .fill(isComplete ? MacpardyTheme.tileBlue : MacpardyTheme.tileIncomplete)

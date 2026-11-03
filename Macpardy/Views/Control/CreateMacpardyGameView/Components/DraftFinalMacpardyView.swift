@@ -27,6 +27,7 @@ struct DraftFinalMacpardyView: View {
 
                 TextField("create.final_macpardy.category_placeholder", text: $draft.category)
                     .focused($focusedField, equals: .category)
+                    .logCommit("Editor › Final › Category", text: draft.category, isFocused: focusedField == .category)
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 480)
                     .unfilledIndicator(unfilled.contains(.finalCategory, round: 2), cornerRadius: 5)
@@ -59,6 +60,7 @@ struct DraftFinalMacpardyView: View {
                 )
                 .unfilledIndicator(unfilled.contains(.finalClue, round: 2), cornerRadius: 8)
                 .focused($focusedField, equals: .question)
+                .logCommit("Editor › Final › Clue", text: draft.clue, isFocused: focusedField == .question)
                 .accessibilityLabel(Text("create.final_macpardy.clue_accessibility"))
                 .onSubmit {
                     focusedField = .answer
@@ -88,6 +90,7 @@ struct DraftFinalMacpardyView: View {
                 )
                 .unfilledIndicator(unfilled.contains(.finalAnswer, round: 2), cornerRadius: 8)
                 .focused($focusedField, equals: .answer)
+                .logCommit("Editor › Final › Answer", text: draft.response, isFocused: focusedField == .answer)
                 .accessibilityLabel(Text("create.final_macpardy.response_accessibility"))
                 .onSubmit {
                     focusedField = .category

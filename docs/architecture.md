@@ -269,6 +269,47 @@ Code: `Services/Buzzer/`. Protocol: [buzzer-protocol.md](buzzer-protocol.md).
   `raw/*.jsonl` plus `system-info.txt` (`SystemInfoReport`), off the main actor. The view saves
   it with `.fileExporter` (`LogArchiveDocument`). Nothing is uploaded.
 
+### Verbose log
+
+Issue #87 makes a run reconstructable from its log alone. On top of the `info`-and-up lines
+above, every user action and state change gets a `.debug` line. There is no setting: the Logs
+window's level filter starts at Info, so these stay hidden until it's lowered to Debug, but
+they are always written to the run file and included in exports. They reuse the existing
+categories (Display window → `display`; Control, editor, Settings, menus, lifecycle →
+`control`; buzzer models and phones → `buzzer`; save/load → `storage`) and start with a
+searchable prefix:
+
+| Prefix | Logged by | Example |
+|---|---|---|
+| `tap:` | `LoggedButton`, `.onLoggedTapGesture` | `tap: Control › Score strip › Team 2 'Blue' Correct +400` |
+| `menu:` | `LoggedButton(…, source: .menu)` in `App/Commands` | `menu: Game › Reveal answer` |
+| `shortcut:` | the same buttons when a key press triggered them (`NSApp.currentEvent`), board arrow keys | `shortcut: ⌘R Game › Reveal answer` |
+| `nav:` | `.logPresentation`, file picker results (`UIActionLog.filePicked`), Settings tabs | `nav: alert 'Save changes?' presented` |
+| `app:` | `MacpardyApp`, `MacpardyAppDelegate`, `.logWindowLifecycle` | `app: scenePhase active → inactive` |
+| `state:` | the models, `MacpardyLogger.change` / `.state` | `state: Team 2 'Blue' score: 400 → 800 (+400, correct)` |
+| `phone:` | `BuzzerServer` (every inbound message but `pong`, and `uiEvent`) | `phone: Blue (10.0.0.4 #a1b2): buzz` |
+
+- **Helpers** (`Services/Logging/VerboseLogging.swift`): `MacpardyLogger.change(_:from:to:reason:team:)`
+  logs `state: <field>: <old> → <new> (<reason>)` and nothing when the value didn't change.
+  `LogDescribable` gives models a safe one-line form (`Question` → `$400 DD #1A2B3C4D`, never
+  its text); `LogLabel` passes text that is already formatted. View helpers live in
+  `Views/Shared/Logging/`.
+- **Models** log where the change happens: `GameState` (phase, clue as
+  `R1 · 'Rivers' · $400 (C1 row 2)`, scores with a `ScoreReason`, Daily Double, Final wagers and
+  answer lengths, teams, round), `GameTimer` (start, pause, resume, reset, ±time, expiry; never
+  a tick), `BuzzerState`, `BoardEditorSession`, `EditorUndoController` (edit location such as
+  `editClue r1.c1.q2.clue`, undo, redo), `SoundPlayer`, `RecentBoards`, `BoardOpenCoordinator`
+  and `GameSaveStore`. `SettingsChangeLog` diffs the Settings values on every `UserDefaults`
+  change, as `state: AppSettings.<name>: old → new`.
+- **Content rule:** IDs, titles, team names, scores, wagers and file names only. Clue text,
+  answer text, typed editor text and Final answers are never logged; text fields log their
+  length when committed (`.logCommit`: Return, focus loss, or going away), never per keystroke.
+- **Tests:** `LogCapture.capture { … }` (Debug builds only) collects what was logged inside the
+  closure through a `TaskLocal` checked in `LogCenter.submit`. `LogVolumeTests` plays a scripted
+  4-team game: about 1,700 lines and 320 KB, well under the 5 MB run cap.
+- **Guardrail:** the `unlogged_tap` SwiftLint rule flags a bare `Button` or `.onTapGesture` in
+  `Views/` (except `Views/Logs/`, which is exempt so filtering logs doesn't spam them).
+
 ## Cross-cutting
 
 - **Concurrency:** default isolation is `MainActor`; pure logic is `nonisolated`; I/O lives

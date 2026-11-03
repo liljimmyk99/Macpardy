@@ -77,6 +77,7 @@ struct CreateMacpardyGameView: View {
 
         return VStack(alignment: .leading, spacing: 18) {
             GameTitleEditor(title: $title, isUnfilled: unfilled.contains(.gameTitle))
+                .logCommit("Editor › Game title", text: title)
             
             RoundIndictator(currentRound: $currentRound)
 
@@ -85,6 +86,7 @@ struct CreateMacpardyGameView: View {
                 round: currentRoundKind,
                 isUnfilled: unfilled.contains(.roundTitle, round: currentRound)
             )
+            .logCommit("Editor › R\(currentRound + 1) › Round title", text: currentRoundTitle.wrappedValue)
 
             if currentRound == 0 {
                 DraftBoard(
@@ -116,19 +118,20 @@ struct CreateMacpardyGameView: View {
         .frame(minWidth: 1200, minHeight: 820)
         .background(MacpardyTheme.controlBackground)
         .alert("create.alert.incomplete_title", isPresented: $showValidationAlert) {
-            Button("common.ok") {}
+            LoggedButton("common.ok", log: "alert 'Game incomplete' › OK") {}
         } message: {
             Text(validationMessage)
         }
+        .logPresentation("alert 'Game incomplete'", isPresented: showValidationAlert)
         .alert("create.unfilled.alert.title", isPresented: $showUnfilledAlert) {
-            Button("create.unfilled.alert.keep_editing", role: .cancel) {
+            LoggedButton("create.unfilled.alert.keep_editing", log: "alert 'Default text left' › Keep editing", role: .cancel) {
                 let request = unfilledAlertRequest
                 unfilledAlertRequest = nil
                 if request != nil {
                     finishClose(proceed: false)
                 }
             }
-            Button("create.unfilled.alert.save_anyway") {
+            LoggedButton("create.unfilled.alert.save_anyway", log: "alert 'Default text left' › Save anyway") {
                 let request = unfilledAlertRequest
                 unfilledAlertRequest = nil
                 saveGame(thenFinish: request, confirmedUnfilled: true)
@@ -136,38 +139,42 @@ struct CreateMacpardyGameView: View {
         } message: {
             Text(unfilledAlertMessage)
         }
+        .logPresentation("alert 'Default text left'", isPresented: showUnfilledAlert)
         .alert("create.alert.save_failed_title", isPresented: $showSaveErrorAlert) {
-            Button("common.ok") {}
+            LoggedButton("common.ok", log: "alert 'Save failed' › OK") {}
         } message: {
             Text(saveErrorMessage)
         }
+        .logPresentation("alert 'Save failed'", isPresented: showSaveErrorAlert)
         .alert(unsavedPromptTitle, isPresented: $showUnsavedPrompt) {
-            Button("edit.alert.unsaved.save") {
+            LoggedButton("edit.alert.unsaved.save", log: "alert 'Save changes?' › Save") {
                 saveGame(thenFinish: editorSession.closeRequest)
             }
-            Button("edit.alert.unsaved.discard", role: .destructive) {
+            LoggedButton("edit.alert.unsaved.discard", log: "alert 'Save changes?' › Discard", role: .destructive) {
                 finishClose(proceed: true)
             }
-            Button("common.cancel", role: .cancel) {
+            LoggedButton("common.cancel", log: "alert 'Save changes?' › Cancel", role: .cancel) {
                 finishClose(proceed: false)
             }
         } message: {
             Text("edit.alert.unsaved.message")
         }
+        .logPresentation("alert 'Save changes?'", isPresented: showUnsavedPrompt)
         .alert("edit.alert.play_title", isPresented: $showPlayPrompt) {
-            Button("edit.alert.play_action") {
+            LoggedButton("edit.alert.play_action", log: "alert 'Play this game?' › Play") {
                 if let boards = exportDocument?.boards {
                     editorSession.boardsToPlay = boards
                 }
                 openWindow(id: "control")
                 dismissWindow(id: "create-macpardy")
             }
-            Button("edit.alert.not_now_action", role: .cancel) {
+            LoggedButton("edit.alert.not_now_action", log: "alert 'Play this game?' › Not now", role: .cancel) {
                 dismissWindow(id: "create-macpardy")
             }
         } message: {
             Text("edit.alert.play_message")
         }
+        .logPresentation("alert 'Play this game?'", isPresented: showPlayPrompt)
         .fileExporter(
             isPresented: $showFileExporter,
             document: exportDocument,
@@ -178,6 +185,7 @@ struct CreateMacpardyGameView: View {
                     : FileManagerService().defaultFilename(for: title))
             }
         ) { result in
+            UIActionLog.fileSaved("file exporter 'Save game'", result)
             switch result {
             case .success(let url):
                 AppLogger.database.info("Saved boards to \(url.lastPathComponent)")
@@ -200,9 +208,11 @@ struct CreateMacpardyGameView: View {
                 cancelPendingClose()
             }
         }
+        .logPresentation("file exporter 'Save game'", isPresented: showFileExporter)
         .sheet(item: $selectedQuestion) { question in
             QuestionEditorView(
                 value: question.value,
+                location: "Editor › R\(currentRound + 1) C\(question.categoryIndex + 1) row \(question.questionIndex + 1)",
                 clue: Binding(
                     get: {
                         if currentRound == 0 {
@@ -273,6 +283,10 @@ struct CreateMacpardyGameView: View {
             )
             .frame(minWidth: 540, minHeight: 520)
         }
+        .logPresentation(
+            "sheet 'Edit clue' (\(selectedQuestion.map { "R\(currentRound + 1) C\($0.categoryIndex + 1) row \($0.questionIndex + 1)" } ?? "closed"))",
+            isPresented: selectedQuestion != nil
+        )
         // "Edit game" queues a loaded board; pick it up when the window opens,
         // or right away if it's already open.
         .onAppear {

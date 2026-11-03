@@ -100,7 +100,7 @@ extension ScoreControlsView {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             if gameState.phase == .finalMacpardyAnswer {
-                Button {
+                LoggedButton(log: "Control › Score › \(gameState.teamLabel(team.id)) › \(isRevealed ? "Hide" : "Show") Final answer on Display") {
                     gameState.revealFinalAnswer(teamID: isRevealed ? nil : team.id)
                 } label: {
                     Label(revealTitle, systemImage: isRevealed ? "eye.slash.fill" : "tv.fill")
@@ -126,7 +126,7 @@ extension ScoreControlsView {
                     scoreButton(title: "control.score.amount.plus_200", for: team, amount: 200)
                     scoreButton(title: "control.score.amount.minus_200", for: team, amount: -200)
 
-                    Button("control.score.button.reset") {
+                    LoggedButton("control.score.button.reset", log: "Control › Score › \(gameState.teamLabel(team.id)) › Reset") {
                         gameState.resetScore(for: team.id)
                     }
                     .buttonStyle(.bordered)
@@ -179,13 +179,29 @@ extension ScoreControlsView {
     }
 
     func scoreButton(title: LocalizedStringKey, for team: Team, amount: Int, isCorrect: Bool? = nil) -> some View {
-        Button(title) {
-            gameState.adjustScore(for: team.id, by: amount)
+        LoggedButton(title, log: "Control › Score › \(gameState.teamLabel(team.id)) \(amount >= 0 ? "+" : "")\(amount)\(scoreLogSuffix(isCorrect))") {
+            gameState.adjustScore(for: team.id, by: amount, reason: scoreReason(isCorrect))
             if isCorrect == false { SoundPlayer.shared.play(.incorrect) }
             updateBuzzer(for: team, isCorrect: isCorrect)
         }
         .buttonStyle(.bordered)
         .tint(isCorrect == true ? .green : (isCorrect == false ? .red : nil))
         .frame(maxWidth: .infinity)
+    }
+
+    private func scoreReason(_ isCorrect: Bool?) -> GameState.ScoreReason {
+        switch isCorrect {
+        case true?: .correct
+        case false?: .incorrect
+        case nil: .hostEdit
+        }
+    }
+
+    private func scoreLogSuffix(_ isCorrect: Bool?) -> String {
+        switch isCorrect {
+        case true?: " (correct)"
+        case false?: " (wrong)"
+        case nil: ""
+        }
     }
 }

@@ -16,7 +16,7 @@ extension FinalMacpardyControlView {
             Spacer()
 
             if gameState.phase == .finalMacpardyAnswer {
-                Button(role: .destructive) {
+                LoggedButton(log: "Control › Final › Complete game", role: .destructive) {
                     completeGame()
                 } label: {
                     Label("control.final_macpardy.button.complete_game", systemImage: "flag.checkered.circle.fill")
@@ -25,7 +25,7 @@ extension FinalMacpardyControlView {
                 .tint(.green)
             }
 
-            Button {
+            LoggedButton(log: "Control › Final › Return to board") {
                 gameState.showBoard()
             } label: {
                 Label("control.question.button.return_to_board", systemImage: "arrowshape.turn.up.backward.fill")
@@ -71,7 +71,8 @@ extension FinalMacpardyControlView {
             LargeButton(
                 title: gameState.phase == .finalMacpardyAnswer ? "control.question.button.answer_revealed" : "control.question.button.reveal_answer",
                 systemImage: "eye.fill",
-                tint: gameState.phase == .finalMacpardyAnswer ? .secondary : .accentColor
+                tint: gameState.phase == .finalMacpardyAnswer ? .secondary : .accentColor,
+                log: "Control › Final › Reveal answer"
             ) {
                 gameState.revealAnswer()
             }

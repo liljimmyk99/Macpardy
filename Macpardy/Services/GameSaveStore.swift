@@ -55,6 +55,7 @@ actor GameSaveStore {
 
         _ = try? fileManager.removeItem(at: fileURL)
         try fileManager.moveItem(at: tempURL, to: fileURL)
+        AppLogger.database.state("Game auto-saved (\(data.count) bytes, phase \(snapshot.phase.logDescription))")
     }
 
     func load() async -> GameSnapshot? {
@@ -74,6 +75,7 @@ actor GameSaveStore {
                 return nil
             }
 
+            AppLogger.database.state("Saved game found (\(data.count) bytes, phase \(snapshot.phase.logDescription))")
             return snapshot
         } catch {
             AppLogger.database.error("Failed to decode saved game or file corrupted: \(error.localizedDescription). Discarding.")
@@ -88,6 +90,7 @@ actor GameSaveStore {
         }
         do {
             try fileManager.removeItem(at: fileURL)
+            AppLogger.database.state("Saved game cleared")
         } catch {
             AppLogger.database.error("Failed to clear saved game: \(error.localizedDescription)")
         }

@@ -30,7 +30,7 @@ struct NewGameView: View {
 
             HStack {
                 Spacer()
-                Button("common.cancel", role: .cancel) {
+                LoggedButton("common.cancel", log: "New game › Cancel", role: .cancel) {
                     dismiss()
                 }
                 .keyboardShortcut(.cancelAction)
@@ -53,7 +53,7 @@ private struct BuildInEditorOption: View {
             systemImage: "square.grid.3x3",
             description: "new_game.editor.description"
         ) {
-            LargeButton(title: "new_game.editor.button", systemImage: "pencil", tint: .orange) {
+            LargeButton(title: "new_game.editor.button", systemImage: "pencil", tint: .orange, log: "New game › Build in editor") {
                 onBuildInEditor()
             }
         }
@@ -86,7 +86,7 @@ private struct CSVImportOption: View {
         ) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 12) {
-                    Button {
+                    LoggedButton(log: "New game › CSV › Download template") {
                         templateDocument = CSVTemplateDocument(data: CSVBoardTemplate.makeData())
                         showTemplateExporter = true
                     } label: {
@@ -98,10 +98,12 @@ private struct CSVImportOption: View {
                         contentType: .commaSeparatedText,
                         defaultFilename: CSVBoardTemplate.suggestedFileName
                     ) { result in
+                        UIActionLog.fileSaved("file exporter 'CSV template'", result)
                         handleTemplateSaved(result)
                     }
+                    .logPresentation("file exporter 'CSV template'", isPresented: showTemplateExporter)
 
-                    Button {
+                    LoggedButton(log: "New game › CSV › Upload CSV") {
                         showCSVImporter = true
                     } label: {
                         Label("new_game.csv.upload", systemImage: "arrow.up.doc")
@@ -111,8 +113,10 @@ private struct CSVImportOption: View {
                         isPresented: $showCSVImporter,
                         allowedContentTypes: [.commaSeparatedText, .plainText]
                     ) { result in
+                        UIActionLog.filePicked("file importer 'CSV'", result)
                         handleCSVPicked(result)
                     }
+                    .logPresentation("file importer 'CSV'", isPresented: showCSVImporter)
                 }
 
                 if let statusMessage {
@@ -142,8 +146,10 @@ private struct CSVImportOption: View {
                         contentType: .json,
                         defaultFilename: FileManagerService().defaultJSONFilename(for: importedTitle)
                     ) { result in
+                        UIActionLog.fileSaved("file exporter 'Imported board'", result)
                         handleJSONSaved(result)
                     }
+                    .logPresentation("file exporter 'Imported board'", isPresented: showJSONExporter)
                 }
 
                 if !issues.isEmpty {
@@ -179,12 +185,16 @@ private struct CSVImportOption: View {
                 let data = try FileManagerService().readData(from: url)
                 let boards = try CSVBoardImporter.importBoards(from: data, title: title)
                 defaultTextWarnings = CSVBoardImporter.defaultTextWarnings(from: data)
+                if !defaultTextWarnings.isEmpty {
+                    AppLogger.database.state("CSV import: \(defaultTextWarnings.count) cell(s) still hold the template's text")
+                }
                 importedTitle = title
                 jsonDocument = MacpardyJSONBoardDocument(boards: boards)
                 AppLogger.database.info("Imported CSV \(url.lastPathComponent)")
             } catch let error as CSVBoardImporter.ImportError {
                 issues = error.issues
                 AppLogger.database.info("CSV \(url.lastPathComponent) has \(error.issues.count) problem(s)")
+                AppLogger.database.state("CSV import problems: \(error.issues.map { $0.location ?? "?" }.joined(separator: "; "))")
             } catch {
                 statusMessage = String(localized: "new_game.csv.read_failed \(error.localizedDescription)")
                 AppLogger.database.error("Failed to read CSV: \(error.localizedDescription)")
@@ -262,7 +272,7 @@ private struct ReadyToPlayView: View {
             Text("new_game.csv.ready_detail")
                 .font(.callout)
                 .foregroundStyle(.secondary)
-            LargeButton(title: "new_game.csv.save_and_play", systemImage: "play.fill") {
+            LargeButton(title: "new_game.csv.save_and_play", systemImage: "play.fill", log: "New game › CSV › Save and play") {
                 onSaveAndPlay()
             }
         }
@@ -281,8 +291,8 @@ private struct DefaultTextWarningView: View {
         VStack(alignment: .leading, spacing: 8) {
             CSVIssueList(issues: warnings, isWarning: true)
             HStack {
-                Button("common.cancel", role: .cancel, action: onCancel)
-                Button("new_game.csv.continue_anyway", action: onContinue)
+                LoggedButton("common.cancel", log: "New game › CSV › Template text warning › Cancel", role: .cancel, action: onCancel)
+                LoggedButton("new_game.csv.continue_anyway", log: "New game › CSV › Template text warning › Continue anyway", action: onContinue)
                     .buttonStyle(.borderedProminent)
             }
         }

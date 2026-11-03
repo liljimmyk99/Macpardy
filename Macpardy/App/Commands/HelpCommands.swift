@@ -14,12 +14,12 @@ struct HelpCommands: Commands {
 
     var body: some Commands {
         CommandGroup(replacing: .help) {
-            Button("menu.help.keyboard_shortcuts") {
+            LoggedButton("menu.help.keyboard_shortcuts", log: "Help › Keyboard shortcuts", source: .menu) {
                 openWindow(id: "shortcuts")
             }
             .keyboardShortcut(.keyboardShortcuts)
 
-            Button("menu.help.show_logs") {
+            LoggedButton("menu.help.show_logs", log: "Help › Show logs", source: .menu) {
                 openWindow(id: "logs")
             }
             .keyboardShortcut(.showLogs)

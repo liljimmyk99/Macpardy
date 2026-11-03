@@ -47,6 +47,8 @@ final class EditorUndoController {
     func draftChanged(_ draft: BoardDraft, undoManager: UndoManager?, now: Date = Date()) {
         self.undoManager = undoManager
         guard case .newStep(let change, let before) = history.record(draft, at: now) else { return }
+        // Where the edit was, never what was typed; later keystrokes merge into this step.
+        AppLogger.control.state("Editor edit: \(change.logDescription)")
         guard Self.registersTypingSteps || !change.kind.isTyping else { return }
         register(restoring: before, redoingTo: draft, change: change)
     }
@@ -54,6 +56,8 @@ final class EditorUndoController {
     private func register(restoring before: BoardDraft, redoingTo after: BoardDraft, change: EditorChange) {
         guard let undoManager else { return }
         undoManager.registerUndo(withTarget: self) { controller in
+            let how = controller.undoManager?.isRedoing == true ? "redo" : "undo"
+            AppLogger.control.state("Editor \(how): \(change.logDescription)")
             controller.apply(before)
             controller.history.applied(before)
             // Registered while undoing, so it becomes the redo.

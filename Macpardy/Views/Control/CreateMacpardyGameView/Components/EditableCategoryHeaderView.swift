@@ -12,6 +12,8 @@ struct EditableCategoryHeaderView: View {
     var placeholder: String = String(localized: "create.category_placeholder")
     var font: Font = MacpardyTheme.categoryFont
     var isUnfilled = false
+    /// Where the field is, for the log, e.g. "Editor › R1 C2 › Category".
+    var logLocation = "Editor › Category"
 
     @FocusState private var isFocused: Bool
 
@@ -32,6 +34,7 @@ struct EditableCategoryHeaderView: View {
             .textFieldStyle(.plain)
             .padding(.horizontal, 8)
             .focused($isFocused)
+            .logCommit(logLocation, text: title, isFocused: isFocused)
             .accessibilityLabel(Text("create.category_accessibility \(title.isEmpty ? placeholder : title)"))
         }
         .clipShape(RoundedRectangle(cornerRadius: 6))

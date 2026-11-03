@@ -53,6 +53,7 @@ extension FinalMacpardyCategoryControlView {
                                 .frame(width: 100)
                                 .font(.monospacedDigit(.body)())
                                 .onSubmit { commitWager(for: team) }
+                                .logCommit("Control › Final › \(gameState.teamLabel(team.id)) › Wager", text: wagers[team.id] ?? "")
                             }
                         }
                     }
@@ -82,7 +83,8 @@ extension FinalMacpardyCategoryControlView {
         LargeButton(
             title: "control.final_macpardy.button.reveal_question",
             systemImage: "questionmark.circle.fill",
-            tint: MacpardyTheme.gold
+            tint: MacpardyTheme.gold,
+            log: "Control › Final › Reveal question"
         ) {
             for team in gameState.game.teams {
                 commitWager(for: team)

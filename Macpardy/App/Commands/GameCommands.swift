@@ -23,19 +23,19 @@ struct GameCommands: Commands {
 
     var body: some Commands {
         CommandMenu("menu.game") {
-            Button("control.question.button.return_to_board") {
+            LoggedButton("control.question.button.return_to_board", log: "Game › Return to board", source: .menu) {
                 gameState.showBoard()
             }
             .keyboardShortcut(.returnToBoard)
             .disabled(!availability.canReturnToBoard)
 
-            Button("control.board.button.next_round") {
+            LoggedButton("control.board.button.next_round", log: "Game › Next round", source: .menu) {
                 gameState.advanceRound()
             }
             .keyboardShortcut(.nextRound)
             .disabled(!availability.canAdvanceRound)
 
-            Button("round.final_macpardy") {
+            LoggedButton("round.final_macpardy", log: "Game › Final Macpardy", source: .menu) {
                 gameState.showFinalMacpardy()
             }
             .keyboardShortcut(.finalMacpardy)
@@ -43,13 +43,13 @@ struct GameCommands: Commands {
 
             Divider()
 
-            Button("control.question.button.reveal_answer") {
+            LoggedButton("control.question.button.reveal_answer", log: "Game › Reveal answer", source: .menu) {
                 gameState.revealAnswer()
             }
             .keyboardShortcut(.revealAnswer)
             .disabled(!availability.canRevealAnswer)
 
-            Button(gameState.timer.isRunning ? "menu.game.timer.pause" : "menu.game.timer.start") {
+            LoggedButton(gameState.timer.isRunning ? "menu.game.timer.pause" : "menu.game.timer.start", log: "Game › \(gameState.timer.isRunning ? "Pause" : "Start") timer", source: .menu) {
                 if gameState.timer.isRunning {
                     gameState.timer.stop()
                 } else {
@@ -59,19 +59,19 @@ struct GameCommands: Commands {
             .keyboardShortcut(.toggleTimer)
             .disabled(!availability.canControlTimer)
 
-            Button("menu.game.timer.reset") {
+            LoggedButton("menu.game.timer.reset", log: "Game › Reset timer", source: .menu) {
                 gameState.resetTimer()
             }
             .keyboardShortcut(.resetTimer)
             .disabled(!availability.canControlTimer)
 
-            Button("menu.game.timer.minus_5") {
+            LoggedButton("menu.game.timer.minus_5", log: "Game › Timer −5s", source: .menu) {
                 gameState.timer.addSeconds(-5)
             }
             .keyboardShortcut(.timerMinus5)
             .disabled(!availability.canControlTimer)
 
-            Button("menu.game.timer.plus_5") {
+            LoggedButton("menu.game.timer.plus_5", log: "Game › Timer +5s", source: .menu) {
                 gameState.timer.addSeconds(5)
             }
             .keyboardShortcut(.timerPlus5)
@@ -79,19 +79,19 @@ struct GameCommands: Commands {
 
             Divider()
 
-            Button("control.toolbar.show_display") {
+            LoggedButton("control.toolbar.show_display", log: "Game › Show Display", source: .menu) {
                 openWindow(id: "display")
             }
             .keyboardShortcut(.showDisplay)
             .disabled(!availability.canShowDisplay)
 
-            Button("menu.game.buzzers") {
+            LoggedButton("menu.game.buzzers", log: "Game › Buzzers", source: .menu) {
                 buzzerState.isPopoverPresented.toggle()
             }
             .keyboardShortcut(.buzzers)
             .disabled(!availability.canOpenBuzzers)
 
-            Button(buzzerState.isJoinScreenOnDisplay ? "menu.game.join_screen.hide" : "menu.game.join_screen.show") {
+            LoggedButton(buzzerState.isJoinScreenOnDisplay ? "menu.game.join_screen.hide" : "menu.game.join_screen.show", log: "Game › \(buzzerState.isJoinScreenOnDisplay ? "Hide" : "Show") join screen", source: .menu) {
                 buzzerState.isJoinScreenOnDisplay.toggle()
             }
             .keyboardShortcut(.joinScreen)

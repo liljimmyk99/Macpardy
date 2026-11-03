@@ -12,6 +12,8 @@ struct ControlQuestionTile: View {
 
     let question: Question
     let categoryTitle: String
+    /// Where the click is logged, e.g. "Board tile R1 C3 $400".
+    var log: String = "Board tile"
     var isHighlighted = false
     let action: () -> Void
     /// The pointer moved onto an open tile.
@@ -25,7 +27,7 @@ struct ControlQuestionTile: View {
     }
 
     var body: some View {
-        Button(action: action) {
+        LoggedButton(log: log, action: action) {
             ZStack {
                 Rectangle()
                     .fill(fill)

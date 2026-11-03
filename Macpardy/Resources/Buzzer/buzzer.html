@@ -327,7 +327,7 @@
 
 <script>
   // ─── Config ──────────────────────────────────────────────────────────────
-  const PROTOCOL_VERSION = 9;
+  const PROTOCOL_VERSION = 10;
   const WATCHDOG_MS      = 5_000;   // server pings every 2s; silence this long = lost (only while visible)
   const PIN_LENGTH       = 6;
   const WS_URL           = `ws://${location.hostname}:${location.port}/ws`;
@@ -380,6 +380,30 @@
     try { sessionStorage.setItem(DEVICE_KEY, id); } catch {}
     return id;
   })();
+  // ─── Page events for the Mac's log (v10) ────────────────────────────────
+  // Things that happen only on this page (hidden, a tap on a disabled buzzer,
+  // the PIN screen) are sent as fire-and-forget `uiEvent`s. Events from while
+  // there's no joined connection wait here and go out after the next join.
+  const UI_EVENT_QUEUE_MAX = 20;
+  let uiEventQueue = [];
+  let lastDisabledTapAt = 0;
+
+  function uiEvent(event) {
+    const message = { type: "uiEvent", event, at: Date.now() };
+    if (joinedAt && ws && ws.readyState === WebSocket.OPEN) {
+      send(message);
+    } else {
+      uiEventQueue.push(message);
+      if (uiEventQueue.length > UI_EVENT_QUEUE_MAX) uiEventQueue.shift();
+    }
+  }
+
+  function flushUIEvents() {
+    const queued = uiEventQueue;
+    uiEventQueue = [];
+    queued.forEach(send);
+  }
+
   let joinedAt     = 0;       // when the current connection's join was accepted (0 = not joined)
   let hiddenMs     = 0;       // time the page spent hidden during this connection
   let hiddenSince  = null;    // when the page was last hidden, while it still is
@@ -674,6 +698,7 @@
     setState("connected", "Pick your team",
              teams.length ? "" : "The host hasn\u2019t set up any teams yet.");
     const firstShow = teamsEl.style.display !== "flex";   // not on later updates
+    if (firstShow) uiEvent("teamPickerOpened");
     teamsEl.replaceChildren(...teams.map((team, index) => {
       const row  = document.createElement("div");
       row.className = firstShow ? "team-row enter" : "team-row";
@@ -706,6 +731,18 @@
     }
     send({ type: "buzz" });
   });
+
+  // A disabled button gets no click, so taps on it are caught on the way down.
+  // At most one report a second.
+  document.addEventListener("pointerdown", event => {
+    if (!buzzerEl.disabled || buzzerEl.style.display === "none") return;
+    const rect = buzzerEl.getBoundingClientRect();
+    const inside = event.clientX >= rect.left && event.clientX <= rect.right
+                && event.clientY >= rect.top && event.clientY <= rect.bottom;
+    if (!inside || Date.now() - lastDisabledTapAt < 1_000) return;
+    lastDisabledTapAt = Date.now();
+    uiEvent("disabledBuzzerTap");
+  }, true);
 
   // ─── Game PIN screen ─────────────────────────────────────────────────────
   // Upper-cases and drops anything that can't be in a PIN (spaces, dashes).
@@ -763,6 +800,7 @@
     pin = value;
     pinFromURL = false;
     rejoining = false;
+    uiEvent("pinSubmitted");
     connect();
   });
 
@@ -771,10 +809,14 @@
 
   // ─── Disconnect report helpers ───────────────────────────────────────────
   function pageHidden() {
-    if (hiddenSince === null) hiddenSince = Date.now();
+    if (hiddenSince === null) {
+      hiddenSince = Date.now();
+      uiEvent("pageHidden");
+    }
   }
 
   function pageVisible() {
+    if (hiddenSince !== null) uiEvent("pageVisible");
     if (hiddenSince !== null) {
       hiddenMs += Date.now() - hiddenSince;
       hiddenSince = null;
@@ -880,6 +922,7 @@
           acceptedPin = pin;
           setURLCode(pin);
           teams = msg.payload?.teams ?? [];
+          flushUIEvents();     // older events first
           renderTeams();
           break;
 
@@ -1011,6 +1054,7 @@
   // The server refused the PIN. A PIN that worked before (or came from the QR
   // code) means the game ended or the PIN changed, so it's cleared.
   function joinRejected(socket, payload) {
+    uiEvent("pinRejected");
     intentionalClose = true;
     ws = null;
     socket.close();
@@ -1063,6 +1107,7 @@
     if (wasJoined && acceptedPin && !rejoining) {
       rejoining = true;
       pin = acceptedPin;
+      uiEvent("reconnecting");
       connect("Reconnecting…");
       return;
     }

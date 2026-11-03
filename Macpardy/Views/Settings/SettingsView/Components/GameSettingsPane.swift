@@ -84,6 +84,7 @@ private struct TeamNameField: View {
             text: $name,
             prompt: Text("team.default_name \(index + 1)")
         )
+        .logCommit("Settings › Game › Team \(index + 1) name", text: name)
         .onChange(of: name) { _, value in
             if value.count > AppSettings.teamNameMaxLength {
                 name = String(value.prefix(AppSettings.teamNameMaxLength))

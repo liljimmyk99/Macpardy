@@ -3,7 +3,7 @@ import SwiftUI
 extension TimerControlsView {
     func timerPlaybackControls() -> some View {
         HStack(spacing: 6) {
-            Button("control.timer.adjustment.minus_5") {
+            LoggedButton("control.timer.adjustment.minus_5", log: "Control › Timer › −5s") {
                 gameState.timer.addSeconds(-5)
             }
             .help(shortcutHelp("menu.game.timer.minus_5", .timerMinus5))
@@ -12,7 +12,8 @@ extension TimerControlsView {
                 iconButton(
                     "pause.fill",
                     label: "control.timer.pause",
-                    shortcut: .toggleTimer
+                    shortcut: .toggleTimer,
+                    log: "Control › Timer › Pause"
                 ) {
                     gameState.timer.stop()
                 }
@@ -20,7 +21,8 @@ extension TimerControlsView {
                 iconButton(
                     "play.fill",
                     label: "control.timer.start",
-                    shortcut: .toggleTimer
+                    shortcut: .toggleTimer,
+                    log: "Control › Timer › Start"
                 ) {
                     gameState.timer.start()
                 }
@@ -29,12 +31,13 @@ extension TimerControlsView {
             iconButton(
                 "arrow.counterclockwise",
                 label: "control.timer.reset",
-                shortcut: .resetTimer
+                shortcut: .resetTimer,
+                log: "Control › Timer › Reset"
             ) {
                 gameState.resetTimer()
             }
 
-            Button("control.timer.adjustment.plus_5") {
+            LoggedButton("control.timer.adjustment.plus_5", log: "Control › Timer › +5s") {
                 gameState.timer.addSeconds(5)
             }
             .help(shortcutHelp("menu.game.timer.plus_5", .timerPlus5))
@@ -47,9 +50,10 @@ extension TimerControlsView {
         _ systemImage: String,
         label: LocalizedStringKey,
         shortcut: AppShortcut,
+        log: String,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
+        LoggedButton(log: log, action: action) {
             Image(systemName: systemImage)
                 .frame(width: 28)
         }

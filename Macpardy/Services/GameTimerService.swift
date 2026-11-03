@@ -10,6 +10,9 @@ import Foundation
 final class GameTimer {
     private var timer: Timer?
 
+    /// Names the timer in log lines, e.g. "Question timer".
+    @ObservationIgnored let name: String
+
     private(set) var remainingTime: TimeInterval
         private(set) var isRunning = false
 
@@ -19,7 +22,8 @@ final class GameTimer {
     /// zero or gets time back, so watching it doesn't redraw on every tick.
     private(set) var isExpired = false
 
-    init(seconds: TimeInterval = 15.0) {
+    init(name: String = "Timer", seconds: TimeInterval = 15.0) {
+            self.name = name
             self.startingTime = seconds
             self.remainingTime = seconds
         }
@@ -27,6 +31,7 @@ final class GameTimer {
         func start() {
             guard !isRunning else { return }
 
+            log("\(remainingTime < startingTime ? "resumed" : "started") at \(Self.format(remainingTime)) of \(Self.format(startingTime))")
             isRunning = true
 
             timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
@@ -36,6 +41,7 @@ final class GameTimer {
 
                 if remainingTime <= 0 {
                     remainingTime = 0
+                    log("expired")
                     updateExpired()
                     // Let the warning's closing tone finish.
                     halt()
@@ -47,6 +53,7 @@ final class GameTimer {
         }
 
         func stop() {
+            if isRunning { log("paused at \(Self.format(remainingTime))") }
             halt()
             stopWarning()
         }
@@ -63,6 +70,9 @@ final class GameTimer {
             stop()
             isWarningSpent = false
             if let seconds { startingTime = seconds }
+            if remainingTime != startingTime {
+                log("reset from \(Self.format(remainingTime)) to \(Self.format(startingTime))")
+            }
             remainingTime = startingTime
             updateExpired()
         }
@@ -76,7 +86,9 @@ final class GameTimer {
 
     func addSeconds(_ amount: Int) {
         let wasExpired = remainingTime <= 0
+        let before = remainingTime
         remainingTime = max(0, remainingTime + TimeInterval(amount))
+        log("\(amount >= 0 ? "+" : "")\(amount)s: \(Self.format(before)) → \(Self.format(remainingTime))")
         updateExpired()
         if wasExpired, remainingTime > 0 {
             // Time is back after running out: the warning starts over on the way down.
@@ -87,6 +99,18 @@ final class GameTimer {
             isWarningSpent = true
             stopWarning()
         }
+    }
+
+    // MARK: - Log (#87)
+
+    /// Start, pause, resume, reset and expiry only; never each tick.
+    private func log(_ event: String) {
+        AppLogger.control.state("\(name) \(event)")
+    }
+
+    /// "12.3s".
+    private static func format(_ seconds: TimeInterval) -> String {
+        "\((max(0, seconds) * 10).rounded() / 10)s"
     }
 
     // MARK: - Warning sound

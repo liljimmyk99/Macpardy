@@ -40,6 +40,7 @@ struct TeamSetupCard: View {
                     .font(.title2.bold())
                     .padding(10)
                     .background(MacpardyTheme.panelBlue, in: RoundedRectangle(cornerRadius: 8))
+                    .logCommit("Control › Setup › \(gameState.teamLabel(team.id)) › Name", text: team.name)
             }
 
             VStack(alignment: .leading, spacing: 8) {
@@ -61,13 +62,13 @@ struct TeamSetupCard: View {
                 }
                 Spacer()
                 if buzzersEnabled, buzzerState.claimedTeamIDs.contains(team.id) {
-                    Button("control.team.remove_phone") {
+                    LoggedButton("control.team.remove_phone", log: "Control › Setup › \(gameState.teamLabel(team.id)) › Remove phone") {
                         Task { await buzzerState.removePhone(forTeam: team.id) }
                     }
                     .help("control.team.remove_phone.help")
                 }
                 if gameState.game.teams.count > 1 {
-                    Button("control.setup.button.remove_team", role: .destructive) {
+                    LoggedButton("control.setup.button.remove_team", log: "Control › Setup › \(gameState.teamLabel(team.id)) › Remove team", role: .destructive) {
                         gameState.removeTeam(id: team.id)
                     }
                     .buttonStyle(.borderless)
@@ -86,7 +87,7 @@ struct TeamSetupCard: View {
 
     private func swatch(_ color: String) -> some View {
         let isSelected = team.color == color
-        return Button {
+        return LoggedButton(log: "Control › Setup › \(gameState.teamLabel(team.id)) › Color \(color)") {
             if let teamIndex { gameState.game.teams[teamIndex].color = color }
         } label: {
             Circle()

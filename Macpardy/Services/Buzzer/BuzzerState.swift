@@ -26,16 +26,30 @@ final class BuzzerState {
     private(set) var baseURL: URL?
 
     /// Number of phones that have authenticated with a valid join code.
-    private(set) var connectedClientCount: Int = 0
+    private(set) var connectedClientCount: Int = 0 {
+        didSet { log.change("BuzzerState.joinedPhones", from: oldValue, to: connectedClientCount) }
+    }
 
     /// Whether the server is currently running.
-    private(set) var isRunning: Bool = false
+    private(set) var isRunning: Bool = false {
+        didSet { log.change("BuzzerState.serverRunning", from: oldValue, to: isRunning) }
+    }
 
     /// Human-readable reason the server could not start (or stopped), if any.
     private(set) var startError: String?
 
     /// Teams that currently have a phone attached.
-    private(set) var claimedTeamIDs: Set<UUID> = []
+    private(set) var claimedTeamIDs: Set<UUID> = [] {
+        didSet {
+            guard oldValue != claimedTeamIDs else { return }
+            for teamID in claimedTeamIDs.subtracting(oldValue) {
+                log.state("Team claimed by a phone: \(teamLabel(teamID))", team: teamName(teamID))
+            }
+            for teamID in oldValue.subtracting(claimedTeamIDs) {
+                log.state("Team lost its phone: \(teamLabel(teamID))", team: teamName(teamID))
+            }
+        }
+    }
 
     /// Teams that had a phone at some point this session but have none now.
     /// Teams that never had a phone are not listed, so a game without buzzers
@@ -43,7 +57,11 @@ final class BuzzerState {
     var disconnectedTeamIDs: Set<UUID> { everClaimedTeamIDs.subtracting(claimedTeamIDs) }
 
     /// The team that buzzed in first and is answering, if any.
-    private(set) var firstBuzzTeamID: UUID?
+    private(set) var firstBuzzTeamID: UUID? {
+        didSet {
+            log.change("BuzzerState.firstBuzz", from: oldValue.map(teamName), to: firstBuzzTeamID.map(teamName), team: firstBuzzTeamID.map(teamName))
+        }
+    }
 
     /// Called on the main actor when a phone submits a valid Final wager.
     var onWagerSubmitted: ((WagerSubmission) -> Void)?
@@ -52,13 +70,19 @@ final class BuzzerState {
     var onAnswerSubmitted: ((AnswerSubmission) -> Void)?
 
     /// Whether the toolbar's Buzzers popover is open. Lives here so the Game menu can open it.
-    var isPopoverPresented = false
+    var isPopoverPresented = false {
+        didSet { log.change("BuzzerState.popoverPresented", from: oldValue, to: isPopoverPresented) }
+    }
 
     /// Whether the Display shows the join screen (QR code, address, Game PIN) over
     /// the current phase (#83). Turned off when the phase changes or the server stops.
-    var isJoinScreenOnDisplay = false
+    var isJoinScreenOnDisplay = false {
+        didSet { log.change("BuzzerState.joinScreenOnDisplay", from: oldValue, to: isJoinScreenOnDisplay) }
+    }
 
     // MARK: - Private
+
+    private let log = AppLogger.buzzer
 
     private var wagerObserverTask: Task<Void, Never>?
     private var wageringLimits: [UUID: Int]?
@@ -98,22 +122,30 @@ final class BuzzerState {
 
     /// Sets up the buzzers for the screen being shown. Clears lockouts.
     func setMode(_ mode: BuzzerMode) async {
+        log.change("BuzzerState.mode", from: latestMode, to: mode)
         latestMode = mode
         await server?.setBuzzerMode(mode)
     }
 
     /// Locks the team out for the question and re-arms the other teams.
     func teamAnsweredWrong(_ teamID: UUID) async {
+        log.state("Buzzer lockout: \(teamLabel(teamID)) answered wrong; other teams re-armed", team: teamName(teamID))
         await server?.markWrong(teamID: teamID)
     }
 
     func teamAnsweredCorrect() async {
+        log.state("Buzzers stopped: correct answer")
         await server?.markCorrect()
     }
 
     /// Starts the answering team's response countdown on every phone, or stops
     /// it when `teamID` is nil. Phones count down on their own.
     func setResponseTimer(teamID: UUID?, seconds: TimeInterval) async {
+        if let teamID {
+            log.state("Phones' response countdown started: \(teamLabel(teamID)), \(Int(seconds))s", team: teamName(teamID))
+        } else {
+            log.state("Phones' response countdown stopped")
+        }
         await server?.setResponseTimer(teamID: teamID, seconds: seconds)
     }
 
@@ -122,12 +154,17 @@ final class BuzzerState {
     /// Opens wagering on the phones. `limits` maps each team to its max wager
     /// (its score); teams at zero or below are excluded.
     func openWagering(limits: [UUID: Int], wagers: [UUID: Int]) async {
+        if limits != wageringLimits {
+            let summary = limits.map { "\(teamLabel($0.key)) max $\($0.value)" }.sorted().joined(separator: ", ")
+            log.state("Final wagering open on phones: \(summary)")
+        }
         wageringLimits = limits
         wageringWagers = wagers
         await server?.openWagering(limits: limits, wagers: wagers)
     }
 
     func closeWagering() async {
+        if wageringLimits != nil { log.state("Final wagering closed on phones") }
         wageringLimits = nil
         wageringWagers = [:]
         await server?.closeWagering()
@@ -135,6 +172,7 @@ final class BuzzerState {
 
     /// Pushes a wager the host entered or edited (nil = cleared) to the team's phone.
     func hostSetWager(teamID: UUID, amount: Int?) async {
+        log.change("\(teamLabel(teamID)) phone wager (host)", from: wageringWagers[teamID], to: amount, team: teamName(teamID))
         wageringWagers[teamID] = amount
         await server?.setWager(teamID: teamID, amount: amount)
     }
@@ -144,6 +182,7 @@ final class BuzzerState {
     /// Opens (Final clue up), locks (correct response revealed) or closes Final
     /// answering on the phones. `answers` are the answers already stored in the game.
     func setAnswering(_ window: FinalAnswerWindow, answers: [UUID: String]) async {
+        log.change("BuzzerState.finalAnswering", from: answeringWindow, to: window)
         answeringWindow = window
         answeringAnswers = window == .closed ? [:] : answers
         await server?.setAnswering(window, answers: answers)
@@ -151,6 +190,7 @@ final class BuzzerState {
 
     /// Frees a team's slot and disconnects its phone with "Removed by host".
     func removePhone(forTeam teamID: UUID) async {
+        log.state("Host removed the phone of \(teamLabel(teamID))", team: teamName(teamID))
         await server?.removePhone(forTeam: teamID)
     }
 
@@ -215,6 +255,7 @@ final class BuzzerState {
             wagerObserverTask = Task { [weak self, stream = newServer.wagerStream] in
                 for await submission in stream {
                     guard let self else { return }
+                    self.log.state("Final wager from phone: \(self.teamLabel(submission.teamID)) $\(submission.amount)", team: self.teamName(submission.teamID))
                     self.wageringWagers[submission.teamID] = submission.amount
                     self.onWagerSubmitted?(submission)
                 }
@@ -223,6 +264,11 @@ final class BuzzerState {
             answerObserverTask = Task { [weak self, stream = newServer.answerStream] in
                 for await submission in stream {
                     guard let self else { return }
+                    // Length only: Final answers are never logged.
+                    self.log.state(
+                        "Final answer from phone: \(self.teamLabel(submission.teamID)) (\(LogValue.length(of: submission.answer)))",
+                        team: self.teamName(submission.teamID)
+                    )
                     self.answeringAnswers[submission.teamID] = submission.answer
                     self.onAnswerSubmitted?(submission)
                 }
@@ -297,6 +343,16 @@ final class BuzzerState {
     /// Broadcasts the current game phase to all connected phones.
     func broadcastPhase(_ phase: String) async {
         await server?.broadcast(.state(phase: phase))
+    }
+
+    /// A team's name, for the log's team filter.
+    private func teamName(_ teamID: UUID) -> String {
+        latestTeams.first { $0.id == teamID }?.name ?? "Unknown team"
+    }
+
+    /// A team's name quoted, for log messages.
+    private func teamLabel(_ teamID: UUID) -> String {
+        "'\(teamName(teamID))'"
     }
 
     // MARK: - Join URLs

@@ -15,12 +15,12 @@ struct FileCommands: Commands {
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
-            Button("menu.file.new_board") {
+            LoggedButton("menu.file.new_board", log: "File › New board", source: .menu) {
                 openWindow(id: "create-macpardy")
             }
             .keyboardShortcut(.newBoard)
 
-            Button("menu.file.import_board") {
+            LoggedButton("menu.file.import_board", log: "File › Import board", source: .menu) {
                 openWindow(id: "control")
                 coordinator.requestImport()
             }
@@ -29,17 +29,17 @@ struct FileCommands: Commands {
             Menu("menu.file.open_recent") {
                 let urls = coordinator.recents.urls
                 if urls.isEmpty {
-                    Button("menu.file.no_recent_boards") {}
+                    LoggedButton("menu.file.no_recent_boards", log: "File › Open Recent › No recent boards", source: .menu) {}
                         .disabled(true)
                 } else {
                     ForEach(urls, id: \.self) { url in
-                        Button(url.lastPathComponent) {
+                        LoggedButton(verbatim: url.lastPathComponent, log: "File › Open Recent › \(url.lastPathComponent)", source: .menu) {
                             openWindow(id: "control")
                             coordinator.open(url: url)
                         }
                     }
                     Divider()
-                    Button("menu.file.clear_menu") {
+                    LoggedButton("menu.file.clear_menu", log: "File › Open Recent › Clear menu", source: .menu) {
                         coordinator.recents.clear()
                     }
                 }

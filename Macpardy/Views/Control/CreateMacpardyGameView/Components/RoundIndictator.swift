@@ -14,7 +14,7 @@ struct RoundIndictator: View {
                 .font(.headline)
                 .foregroundStyle(.primary)
 
-            Button {
+            LoggedButton(log: "Editor › Round picker › R1") {
                 currentRound = 0
             } label: {
                 HStack(spacing: 6) {
@@ -35,7 +35,7 @@ struct RoundIndictator: View {
             }
             .buttonStyle(.plain)
 
-            Button {
+            LoggedButton(log: "Editor › Round picker › R2") {
                 currentRound = 1
             } label: {
                 HStack(spacing: 6) {
@@ -56,7 +56,7 @@ struct RoundIndictator: View {
             }
             .buttonStyle(.plain)
 
-            Button {
+            LoggedButton(log: "Editor › Round picker › Final") {
                 currentRound = 2
             } label: {
                 HStack(spacing: 6) {

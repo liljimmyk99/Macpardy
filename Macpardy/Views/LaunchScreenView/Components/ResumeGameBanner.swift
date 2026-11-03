@@ -34,10 +34,10 @@ struct ResumeGameBanner: View {
 
             Spacer()
 
-            Button("launch.resume.discard", role: .destructive, action: onDiscard)
+            LoggedButton("launch.resume.discard", log: "Launch › Resume banner › Discard", role: .destructive, action: onDiscard)
                 .buttonStyle(.borderless)
 
-            Button("launch.alert.resume_action", action: onResume)
+            LoggedButton("launch.alert.resume_action", log: "Launch › Resume banner › Resume", action: onResume)
                 .buttonStyle(.borderedProminent)
                 .tint(MacpardyTheme.gold)
                 .foregroundStyle(MacpardyTheme.boardBlue)

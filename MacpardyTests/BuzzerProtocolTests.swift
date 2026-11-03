@@ -198,8 +198,46 @@ final class BuzzerProtocolTests: XCTestCase {
 
     // MARK: - Game PIN entry and session end (#61)
 
-    func testProtocolVersionIsNine() {
-        XCTAssertEqual(BuzzerConstants.protocolVersion, 9)
+    func testProtocolVersionIsTen() {
+        XCTAssertEqual(BuzzerConstants.protocolVersion, 10)
+    }
+
+    // MARK: - Page events (#87)
+
+    func testPagesFromVersionNineOnCanJoin() {
+        XCTAssertFalse(BuzzerConstants.isSupported(version: 8))
+        XCTAssertTrue(BuzzerConstants.isSupported(version: 9))
+        XCTAssertTrue(BuzzerConstants.isSupported(version: 10))
+        XCTAssertFalse(BuzzerConstants.isSupported(version: 11))
+    }
+
+    func testUIEventDecodes() throws {
+        let json = Data(#"{"type":"uiEvent","event":"pageHidden","at":1762180000123}"#.utf8)
+        let message = try JSONDecoder().decode(ClientMessage.self, from: json)
+        guard case .uiEvent(let event, let at) = message else { return XCTFail("expected uiEvent") }
+        XCTAssertEqual(event, "pageHidden")
+        XCTAssertEqual(PhoneUIEvent(rawValue: event), .pageHidden)
+        XCTAssertEqual(at, 1_762_180_000_123)
+    }
+
+    func testUIEventWithABadTimeStillDecodes() throws {
+        let json = Data(#"{"type":"uiEvent","event":"reconnecting","at":"soon"}"#.utf8)
+        let message = try JSONDecoder().decode(ClientMessage.self, from: json)
+        guard case .uiEvent(let event, let at) = message else { return XCTFail("expected uiEvent") }
+        XCTAssertEqual(event, "reconnecting")
+        XCTAssertNil(at)
+    }
+
+    func testUnknownUIEventIsNotAPhoneEvent() throws {
+        let json = Data(#"{"type":"uiEvent","event":"rm -rf"}"#.utf8)
+        let message = try JSONDecoder().decode(ClientMessage.self, from: json)
+        guard case .uiEvent(let event, _) = message else { return XCTFail("expected uiEvent") }
+        XCTAssertNil(PhoneUIEvent(rawValue: event))
+    }
+
+    func testUIEventWithoutAnEventFailsToDecode() {
+        let json = Data(#"{"type":"uiEvent"}"#.utf8)
+        XCTAssertThrowsError(try JSONDecoder().decode(ClientMessage.self, from: json))
     }
 
     func testJoinRejectedEncodesCodeAndReason() throws {

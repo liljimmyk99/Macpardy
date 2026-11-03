@@ -39,7 +39,7 @@ struct BuzzerJoinInfoView: View {
                         .tracking(8)
                 }
 
-                Button {
+                LoggedButton(log: "Control › Setup › Copy join link") {
                     NSPasteboard.general.clearContents()
                     // Copies the full link (with the PIN) so it joins straight away.
                     NSPasteboard.general.setString(url.absoluteString, forType: .string)

@@ -26,7 +26,7 @@ extension BuzzerStatusButton {
                 .padding(.horizontal, 16)
 
             // Why a phone dropped: opens the Logs window (#81).
-            Button("control.buzzer.popover.view_logs", systemImage: "doc.text.magnifyingglass") {
+            LoggedButton("control.buzzer.popover.view_logs", systemImage: "doc.text.magnifyingglass", log: "Buzzers popover › View logs") {
                 openWindow(id: "logs")
             }
             .buttonStyle(.link)
@@ -39,7 +39,7 @@ extension BuzzerStatusButton {
 
     /// Puts the join screen on the Display over the current phase, or takes it down (#83).
     private func joinScreenToggle() -> some View {
-        Button {
+        LoggedButton(log: "Buzzers popover › \(buzzerState.isJoinScreenOnDisplay ? "Hide" : "Show") join screen") {
             buzzerState.isJoinScreenOnDisplay.toggle()
         } label: {
             Label(
@@ -76,7 +76,7 @@ extension BuzzerStatusButton {
                         .foregroundStyle(MacpardyTheme.gold)
                         .tracking(5)
 
-                    Button {
+                    LoggedButton(log: "Buzzers popover › Copy join link") {
                         NSPasteboard.general.clearContents()
                         // Copies the full link (with the PIN) so it joins straight away.
                         NSPasteboard.general.setString(url.absoluteString, forType: .string)

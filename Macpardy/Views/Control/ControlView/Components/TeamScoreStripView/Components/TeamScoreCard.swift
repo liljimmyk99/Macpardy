@@ -48,7 +48,7 @@ struct TeamScoreCard: View {
                 .frame(height: 4)
         }
         .contextMenu {
-            Button("control.score.button.reset") {
+            LoggedButton("control.score.button.reset", log: "Control › Score strip › \(gameState.teamLabel(team.id)) › Reset (context menu)") {
                 gameState.resetScore(for: team.id)
             }
         }
@@ -90,16 +90,16 @@ struct TeamScoreCard: View {
     }
 
     private func adjustButton(_ title: LocalizedStringKey, amount: Int) -> some View {
-        Button(title) {
-            gameState.adjustScore(for: team.id, by: amount)
+        LoggedButton(title, log: "Control › Score strip › \(gameState.teamLabel(team.id)) \(amount >= 0 ? "+" : "")\(amount)") {
+            gameState.adjustScore(for: team.id, by: amount, reason: .hostEdit)
         }
         .buttonStyle(.bordered)
         .controlSize(.large)
     }
 
     private func clueButton(isCorrect: Bool, amount: Int, isDailyDouble: Bool) -> some View {
-        Button {
-            gameState.adjustScore(for: team.id, by: isCorrect ? amount : -amount)
+        LoggedButton(log: "Control › Score strip › \(gameState.teamLabel(team.id)) \(isCorrect ? "Correct +" : "Wrong −")\(amount)\(isDailyDouble ? " (Daily Double)" : "")") {
+            gameState.adjustScore(for: team.id, by: isCorrect ? amount : -amount, reason: isCorrect ? .correct : .incorrect)
             if !isCorrect { SoundPlayer.shared.play(.incorrect) }
             if !isDailyDouble {
                 // Ends this team's response time; wrong resumes the question timer.

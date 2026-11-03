@@ -16,7 +16,8 @@ struct CategoryRow: View {
                 EditableCategoryHeaderView(
                     title: $draftCategories[index].title,
                     placeholder: "Category \(index + 1)",
-                    isUnfilled: unfilled.contains(.category, round: round, category: index)
+                    isUnfilled: unfilled.contains(.category, round: round, category: index),
+                    logLocation: "Editor › R\(round + 1) C\(index + 1) › Category"
                 )
                 .frame(width: 180, height: 80)
             }
