@@ -17,10 +17,13 @@ final class LogFilterTests: XCTestCase {
         LogEntry(level: .warning, category: .network, message: "Mac network changed: Wi-Fi (en0) → unavailable"),
     ]
 
-    func testDefaultsToBuzzerAtInfoAndAbove() {
+    func testDefaultsToAllCategoriesAtInfoAndAbove() {
         let filter = LogFilter()
-        XCTAssertEqual(filter.category, .buzzer)
-        XCTAssertEqual(filter.apply(entries).map(\.message), ["Claim accepted", "Disconnected Blue"])
+        XCTAssertNil(filter.category)
+        XCTAssertEqual(
+            filter.apply(entries).map(\.message),
+            ["Claim accepted", "Disconnected Blue", "Saved boards", "Mac network changed: Wi-Fi (en0) → unavailable"]
+        )
     }
 
     func testAllCategoriesAndMinimumLevel() {

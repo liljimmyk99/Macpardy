@@ -595,7 +595,7 @@ Final answering is over (the host left the Final); the phone returns to the buzz
 ## Troubleshooting disconnects
 
 Open **Help > Show Logs** (⌥⌘L) or **View Logs** in the Buzzers popover; the window opens on
-the Buzzer category. Every disconnect is one line naming the team (or the phone's IP before
+all categories (pick **Buzzer** to see only the phones). Every disconnect is one line naming the team (or the phone's IP before
 it picks one), a 4-character connection id, how long it was connected, and the reason:
 
 | Reason in the log | Likely cause |

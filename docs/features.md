@@ -193,8 +193,8 @@ A game works without phones. When the game starts, the app serves a page on the 
   every phone returns to an empty Game PIN screen ("Game over…"). An old PIN is refused with
   "That game has ended or the PIN changed".
 - Abuse limits: wrong Game PINs and claim attempts are rate limited per address.
-- **Why did a phone drop?** **View Logs** in the Buzzers popover opens the Logs window (§6d)
-  on the Buzzer category. Each disconnect is one line with the team, the phone's IP, how long
+- **Why did a phone drop?** **View Logs** in the Buzzers popover opens the Logs window (§6d),
+  showing all categories; pick **Buzzer** to see only the phones. Each disconnect is one line with the team, the phone's IP, how long
   it was connected and why; when the phone rejoins, its own report says whether its screen was
   locked or the page hidden.
 
@@ -270,7 +270,7 @@ is on:
 The app keeps its own log so a host can see why phones won't connect or drop off.
 
 - **Help > Show Logs** (⌥⌘L), or **View Logs** in the Buzzers popover, opens the **Logs**
-  window. It opens on the **Buzzer** category, showing Info and above, and updates live.
+  window. It opens on **All** categories, showing Info and above, and updates live.
 - Toolbar: pick the **run** (this session, live, or an earlier launch by date), the
   **category** (All, Buzzer, Network, Control, Display, Storage), the **minimum level**, a
   **team**, and search messages, teams and addresses. Text can be selected and copied.
