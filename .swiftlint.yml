@@ -1,0 +1,34 @@
+# SwiftLint is used only for the verbose-logging guardrail (#87): every tap in
+# Views/ goes through `LoggedButton` / `.onLoggedTapGesture`, so it shows up in
+# the log. Run by the "SwiftLint" build phase (see Project.swift) when
+# `swiftlint` is installed.
+
+only_rules:
+  - custom_rules
+
+included:
+  - Macpardy/Views
+
+custom_rules:
+  unlogged_tap:
+    name: "Unlogged tap"
+    # `Button(` / `Button {` and `.onTapGesture`; `LoggedButton` doesn't match.
+    regex: '\bButton(?=\s*[({])|\bonTapGesture\b'
+    match_kinds:
+      - identifier
+    excluded:
+      # The Logs window is exempt, so filtering the logs doesn't spam them.
+      - "Macpardy/Views/Logs/"
+      # The logged helpers themselves.
+      - "Macpardy/Views/Shared/Logging/"
+    message: "Use LoggedButton or .onLoggedTapGesture so the tap is logged. To opt out, add `// swiftlint:disable:next unlogged_tap - <reason>`."
+    severity: error
+
+  unlogged_tap_reason:
+    name: "Unlogged tap without a reason"
+    # A disable of `unlogged_tap` must say why after a dash.
+    regex: 'swiftlint:disable(:next|:this|:previous)? unlogged_tap\s*$'
+    match_kinds:
+      - comment
+    message: "Say why this tap isn't logged: `// swiftlint:disable:next unlogged_tap - <reason>`."
+    severity: error

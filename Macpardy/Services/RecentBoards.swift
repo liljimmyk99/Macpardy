@@ -73,6 +73,7 @@ final class RecentBoards {
     }
 
     private func update(_ updated: [URL]) {
+        AppLogger.database.change("RecentBoards", from: urls.map(\.lastPathComponent), to: updated.map(\.lastPathComponent))
         urls = updated
         storage.save(updated)
     }

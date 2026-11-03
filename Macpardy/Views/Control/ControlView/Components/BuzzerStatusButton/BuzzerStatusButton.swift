@@ -17,7 +17,7 @@ struct BuzzerStatusButton: View {
     var body: some View {
         @Bindable var buzzerState = buzzerState
 
-        Button {
+        LoggedButton(log: "Control › Toolbar › Buzzers") {
             buzzerState.isPopoverPresented.toggle()
         } label: {
             HStack(spacing: 6) {
@@ -37,6 +37,7 @@ struct BuzzerStatusButton: View {
         .popover(isPresented: $buzzerState.isPopoverPresented, arrowEdge: .bottom) {
             popoverContent()
         }
+        .logPresentation("popover 'Buzzers'", isPresented: buzzerState.isPopoverPresented)
     }
 }
 

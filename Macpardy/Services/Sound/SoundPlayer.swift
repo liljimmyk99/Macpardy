@@ -24,6 +24,7 @@ final class SoundPlayer {
 
     var effectsEnabled: Bool {
         didSet {
+            AppLogger.control.change("SoundPlayer.effectsEnabled", from: oldValue, to: effectsEnabled)
             defaults.set(effectsEnabled, forKey: Key.effects)
             if !effectsEnabled { stopEffects() }
         }
@@ -31,6 +32,7 @@ final class SoundPlayer {
 
     var musicEnabled: Bool {
         didSet {
+            AppLogger.control.change("SoundPlayer.musicEnabled", from: oldValue, to: musicEnabled)
             defaults.set(musicEnabled, forKey: Key.music)
             syncMusic()
         }
@@ -53,10 +55,13 @@ final class SoundPlayer {
         guard !effect.isMusic, effectsEnabled, let player = player(for: effect) else { return }
         player.currentTime = min(max(0, offset), player.duration)
         player.play()
+        AppLogger.control.state("Sound played: \(effect.rawValue)\(offset > 0 ? " from \(offset)s" : "")")
     }
 
     func stop(_ effect: SoundEffect) {
-        players[effect]?.stop()
+        guard let player = players[effect] else { return }
+        if player.isPlaying { AppLogger.control.state("Sound stopped: \(effect.rawValue)") }
+        player.stop()
     }
 
     /// Reacts to the game entering `phase`: the music follows the board, and a
@@ -70,6 +75,7 @@ final class SoundPlayer {
     }
 
     func stopAll() {
+        AppLogger.control.state("All sounds stopped")
         wantsMusic = false
         for player in players.values { player.stop() }
     }
@@ -81,8 +87,9 @@ final class SoundPlayer {
             guard let player = player(for: .backgroundMusic), !player.isPlaying else { return }
             player.numberOfLoops = -1
             player.play()
+            AppLogger.control.state("Sound played: \(SoundEffect.backgroundMusic.rawValue) (looping)")
         } else {
-            players[.backgroundMusic]?.stop()
+            stop(.backgroundMusic)
         }
     }
 

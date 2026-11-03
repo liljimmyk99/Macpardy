@@ -15,12 +15,14 @@ struct LaunchActionTile: View {
     let systemImage: String
     /// The menu shortcut that does the same thing, shown as a hint.
     let shortcut: AppShortcut?
+    /// Where the press is logged, e.g. "Launch › Play".
+    let log: String
     let action: () -> Void
 
     @State private var isHovered = false
 
     var body: some View {
-        Button(action: action) {
+        LoggedButton(log: log, action: action) {
             VStack(spacing: 4) {
                 Text(title)
                     .textCase(.uppercase)
@@ -64,7 +66,8 @@ struct LaunchActionTile: View {
         title: "launch.tile.play",
         caption: "launch.tile.play.caption",
         systemImage: "play.fill",
-        shortcut: .importBoard
+        shortcut: .importBoard,
+        log: "Preview"
     ) {}
     .frame(width: 320)
     .padding()

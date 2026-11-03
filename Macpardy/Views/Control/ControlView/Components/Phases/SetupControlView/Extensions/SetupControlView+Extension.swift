@@ -62,7 +62,7 @@ extension SetupControlView {
         case .team(let team):
             TeamSetupCard(team: team)
         case .add:
-            Button {
+            LoggedButton(log: "Control › Setup › Add team") {
                 gameState.addTeam()
             } label: {
                 VStack(spacing: 10) {
@@ -106,7 +106,7 @@ extension SetupControlView {
     }
 
     func startGameButton() -> some View {
-        Button {
+        LoggedButton(log: "Control › Setup › Start game") {
             gameState.startGame()
         } label: {
             Label("control.setup.button.start_game", systemImage: "play.fill")

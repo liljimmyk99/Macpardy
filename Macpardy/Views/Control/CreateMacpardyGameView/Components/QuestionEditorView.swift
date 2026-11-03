@@ -11,6 +11,9 @@ struct QuestionEditorView: View {
 
     let value: Int
 
+    /// Where this clue is, for the log, e.g. "Editor › R1 C2 row 3".
+    var location = "Editor › Clue"
+
     @Binding
     var clue: String
 
@@ -42,7 +45,7 @@ struct QuestionEditorView: View {
                 }
                 .toggleStyle(.button)
                 .tint(MacpardyTheme.gold)
-                Button("common.done") {
+                LoggedButton("common.done", log: "\(location) › Done") {
                     onDone()
                 }
                 .buttonStyle(.borderedProminent)
@@ -54,6 +57,7 @@ struct QuestionEditorView: View {
 
                 MultilineTextEditor(text: $clue, placeholder: String(localized: "create.question.clue_placeholder"))
                     .focused($focusedField, equals: .clue)
+                    .logCommit("\(location) › Clue", text: clue, isFocused: focusedField == .clue)
                     .accessibilityLabel(Text("create.question.clue_accessibility \(value)"))
                     .onSubmit {
                         focusedField = .response
@@ -73,6 +77,7 @@ struct QuestionEditorView: View {
 
                 MultilineTextEditor(text: $response, placeholder: String(localized: "create.question.response_placeholder"))
                     .focused($focusedField, equals: .response)
+                    .logCommit("\(location) › Answer", text: response, isFocused: focusedField == .response)
                     .accessibilityLabel(Text("create.question.response_accessibility \(value)"))
                     .onSubmit {
                         onDone()

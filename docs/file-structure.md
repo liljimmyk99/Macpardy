@@ -52,7 +52,9 @@ Macpardy/
 │   │   ├── LogCenter.swift           @Observable: live lines for the Logs window, feeds the store
 │   │   ├── LogFileStore.swift        actor: one .jsonl per launch, flushing, retention
 │   │   ├── LogExporter.swift         Export Logs… zip + LogArchiveDocument
-│   │   └── SystemInfoReport.swift    system-info.txt
+│   │   ├── SystemInfoReport.swift    system-info.txt
+│   │   ├── VerboseLogging.swift      Verbose log (#87): change(), prefixes, LogDescribable, LogCapture
+│   │   └── SettingsChangeLog.swift   Logs every Settings change as old → new
 │   ├── GameTimerService.swift    GameTimer (15 s countdown)
 │   ├── Sound/                    SoundEffect (sounds + phase cues), SoundPlayer (see sounds.md)
 │   ├── GameSaveStore.swift       actor: auto-save read/write/clear
@@ -108,6 +110,7 @@ Macpardy/
 │   ├── Settings/                 Settings window panes
 │   ├── Shortcuts/                Keyboard Shortcuts window
 │   └── Shared/                   Theme, buttons, headers, image placeholder, WindowCloseGuard
+│       └── Logging/              LoggedButton, .logPresentation, .logCommit, UIActionLog (#87)
 ├── Resources/
 │   ├── Buzzer/buzzer.html        Phone buzzer page (HTML + CSS + JS in one file)
 │   └── Games/*.json              Built-in games (board format; bundled as a folder)

@@ -35,6 +35,7 @@ struct BoardControlView: View {
         }
         .onKeyPress(keys: [.return, .space]) { press in
             guard isPlainKey(press) else { return .ignored }
+            AppLogger.control.shortcut(ShortcutFormatter.keyGlyph(press.key), "Open highlighted clue")
             gameState.openHighlightedQuestion()
             return .handled
         }

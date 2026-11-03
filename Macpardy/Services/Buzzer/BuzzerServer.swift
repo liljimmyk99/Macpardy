@@ -67,6 +67,12 @@ actor BuzzerServer {
         window: BuzzerConstants.claimAttemptWindow,
         lockout: BuzzerConstants.rateLimitLockout
     )
+    /// Keyed by session, so one chatty phone can't flood the log.
+    private var uiEventLimiter = AttemptRateLimiter(
+        maxAttempts: BuzzerConstants.maxUIEvents,
+        window: BuzzerConstants.uiEventWindow,
+        lockout: BuzzerConstants.uiEventWindow
+    )
 
     /// The HTML payload loaded once from the bundle and cached.
     private let buzzerHTML: Data
@@ -473,7 +479,10 @@ actor BuzzerServer {
 
     private func closeTieWindow() {
         tieWindowTask = nil
+        let contenders = engine.window.map { "'\(teamName($0.teamID))'" }
         if let winner = engine.closeWindow() {
+            let how = contenders.count > 1 ? "tie between \(contenders.joined(separator: ", ")) broken" : "no tie"
+            AppLogger.buzzer.state("Tie window closed: \(contenders.count) buzz(es), winner '\(teamName(winner.teamID))' (\(how))", team: teamName(winner.teamID))
             AppLogger.buzzer.info("\(teamName(winner.teamID)) buzzed in first", team: teamName(winner.teamID))
         }
         buzzerChanged()
@@ -771,10 +780,39 @@ actor BuzzerServer {
         handleClientMessage(msg, from: session)
     }
 
+    /// `phone:` line for every inbound message but pongs (#87). Payloads follow
+    /// the content rule: a Final answer's length, never its text; never the PIN.
+    private func logInbound(_ message: ClientMessage, from session: ClientSession) {
+        let what: String
+        switch message {
+        case .join(_, let version, let diag, let device):
+            what = "join v\(version)\(device == nil ? "" : " with device id")\(diag == nil ? "" : " with disconnect report")"
+        case .claim(let teamID): what = "claim '\(teamName(teamID))'"
+        case .pong, .uiEvent: return
+        case .buzz: what = "buzz"
+        case .submitWager(let amount): what = "submitWager $\(amount)"
+        case .submitAnswer(let answer): what = "submitAnswer (\(LogValue.length(of: answer)))"
+        }
+        AppLogger.buzzer.phone("\(session.logLabel): \(what)", team: session.claimedTeamName, remote: session.remoteKey)
+    }
+
+    /// Logs a page-only event the phone reported (v10). Unknown events and
+    /// phones over the rate limit are dropped without a reply.
+    private func handleUIEvent(_ event: String, at: Double?, from session: ClientSession) {
+        guard session.isAuthenticated,
+              !uiEventLimiter.record(session.id.uuidString),
+              let event = PhoneUIEvent(rawValue: event) else { return }
+        // Events from while the phone was offline arrive late; the page's own
+        // time shows when they happened.
+        let when = at.map { " (phone time \(Date(timeIntervalSince1970: $0 / 1000).formatted(LogEntry.timestampStyle)))" } ?? ""
+        AppLogger.buzzer.phone("\(session.logLabel): \(event.logDescription)\(when)", team: session.claimedTeamName, remote: session.remoteKey)
+    }
+
     private func handleClientMessage(_ message: ClientMessage, from session: ClientSession) {
+        logInbound(message, from: session)
         switch message {
         case .join(let code, let version, let diag, let device):
-            guard version == BuzzerConstants.protocolVersion else {
+            guard BuzzerConstants.isSupported(version: version) else {
                 session.send(
                     .joinRejected(.unsupportedVersion),
                     closeAfterSending: true
@@ -852,6 +890,9 @@ actor BuzzerServer {
         case .submitAnswer(let answer):
             guard session.isAuthenticated else { return }
             handleSubmitAnswer(answer, from: session)
+
+        case .uiEvent(let event, let at):
+            handleUIEvent(event, at: at, from: session)
         }
     }
 
@@ -948,6 +989,7 @@ actor BuzzerServer {
 
         codeLimiter.prune(now: now)
         claimLimiter.prune(now: now)
+        uiEventLimiter.prune(now: now)
     }
 
     // MARK: - Helpers

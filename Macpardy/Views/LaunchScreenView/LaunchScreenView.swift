@@ -55,17 +55,21 @@ struct LaunchScreenView: View {
             isPresented: $showEditImporter,
             allowedContentTypes: [.macpardyBoard, .json, .zip, .commaSeparatedText]
         ) { result in
+            UIActionLog.filePicked("file importer 'Edit board'", result)
             handleEditPicked(result)
         }
+        .logPresentation("file importer 'Edit board'", isPresented: showEditImporter)
         .sheet(item: $loadErrorReport) { report in
             BoardLoadErrorView(report: report)
         }
+        .logPresentation("sheet 'Board load error'", isPresented: loadErrorReport != nil)
         .sheet(item: $pickerMode, onDismiss: {
             afterPickerDismiss?()
             afterPickerDismiss = nil
         }) { mode in
             builtInPicker(for: mode)
         }
+        .logPresentation("sheet 'Built-in games' (\(pickerMode.map { "\($0)" } ?? "closed"))", isPresented: pickerMode != nil)
         .sheet(isPresented: $showNewGameSheet) {
             NewGameView(
                 onBuildInEditor: {
@@ -79,32 +83,36 @@ struct LaunchScreenView: View {
                 }
             )
         }
+        .logPresentation("sheet 'New game'", isPresented: showNewGameSheet)
         .alert("launch.alert.resume_title", isPresented: $showResumeAlert) {
-            Button("launch.alert.resume_action") {
+            LoggedButton("launch.alert.resume_action", log: "alert 'Resume saved game?' › Resume") {
                 if let snapshot = pendingSavedSnapshot {
                     resume(snapshot)
                 }
             }
-            Button("launch.alert.new_game_action", role: .destructive) {
+            LoggedButton("launch.alert.new_game_action", log: "alert 'Resume saved game?' › New game", role: .destructive) {
                 discardSavedGame()
                 pickerMode = .play
             }
-            Button("common.cancel", role: .cancel) {}
+            LoggedButton("common.cancel", log: "alert 'Resume saved game?' › Cancel", role: .cancel) {}
         } message: {
             Text("launch.alert.resume_message")
         }
+        .logPresentation("alert 'Resume saved game?'", isPresented: showResumeAlert)
         .confirmationDialog("launch.resume.discard_confirm.title", isPresented: $showDiscardConfirmation) {
-            Button("launch.resume.discard", role: .destructive) {
+            LoggedButton("launch.resume.discard", log: "dialog 'Discard saved game?' › Discard", role: .destructive) {
                 discardSavedGame()
             }
-            Button("common.cancel", role: .cancel) {}
+            LoggedButton("common.cancel", log: "dialog 'Discard saved game?' › Cancel", role: .cancel) {}
         } message: {
             Text("launch.resume.discard_confirm.message")
         }
+        .logPresentation("dialog 'Discard saved game?'", isPresented: showDiscardConfirmation)
         .fileImporter(
             isPresented: $showFileExporter,
             allowedContentTypes: [.macpardyBoard, .json],
             onCompletion: { result in
+                UIActionLog.filePicked("file importer 'Play board'", result)
                 switch result {
                 case .success(let URL):
                     AppLogger.database.info("Successfully Imported \(URL.lastPathComponent)")
@@ -114,6 +122,7 @@ struct LaunchScreenView: View {
                 }
             }
         )
+        .logPresentation("file importer 'Play board'", isPresented: showFileExporter)
     }
 }
 

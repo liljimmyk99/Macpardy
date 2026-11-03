@@ -21,6 +21,7 @@ extension DailyDoubleControlView {
                 TextField("control.daily_double.wager_placeholder", text: $wagerText)
                     .textFieldStyle(.roundedBorder)
                     .font(.title3.monospacedDigit())
+                    .logCommit("Control › Daily Double › Wager", text: wagerText)
             }
 
             quickWagerButtons()

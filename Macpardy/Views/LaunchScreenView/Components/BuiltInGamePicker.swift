@@ -22,7 +22,7 @@ struct BuiltInGamePicker: View {
 
             VStack(spacing: 8) {
                 ForEach(games) { game in
-                    Button {
+                    LoggedButton(log: "Built-in games › '\(game.title)'") {
                         onSelect(game)
                     } label: {
                         Text(verbatim: game.title)
@@ -32,7 +32,7 @@ struct BuiltInGamePicker: View {
                     .controlSize(.large)
                 }
 
-                Button(action: onLoadOwnFile) {
+                LoggedButton(log: "Built-in games › Load own file", action: onLoadOwnFile) {
                     Label("launch.picker.load_own_file", systemImage: "folder")
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.vertical, 6)
@@ -42,7 +42,7 @@ struct BuiltInGamePicker: View {
 
             HStack {
                 Spacer()
-                Button("common.cancel", role: .cancel, action: onCancel)
+                LoggedButton("common.cancel", log: "Built-in games › Cancel", role: .cancel, action: onCancel)
                     .keyboardShortcut(.cancelAction)
             }
         }

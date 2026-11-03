@@ -13,6 +13,7 @@ extension BoardControlView {
                         ControlQuestionTile(
                             question: question,
                             categoryTitle: category.title,
+                            log: "Board tile \(board.round.logDescription) C\(column + 1) row \(row + 1) $\(question.value)",
                             isHighlighted: gameState.highlightedTile == position
                         ) {
                             gameState.selectQuestion(question, categoryTitle: category.title)

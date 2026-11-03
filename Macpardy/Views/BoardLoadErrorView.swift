@@ -48,7 +48,7 @@ struct BoardLoadErrorView: View {
 
             HStack {
                 Spacer()
-                Button("common.ok") {
+                LoggedButton("common.ok", log: "Board load error › OK") {
                     dismiss()
                 }
                 .keyboardShortcut(.defaultAction)

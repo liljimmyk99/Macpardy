@@ -28,6 +28,7 @@ struct BoardRow: View {
                 isUnfilled: isUnfilled,
                 isDailyDouble: question.isDailyDouble,
                 hasImage: question.image != nil,
+                log: "Editor › R\(round + 1) C\(categoryIndex + 1) row \(rowIndex + 1) $\(value)",
                 action: {
                     selectedQuestion = EditingQuestion(
                         categoryIndex: categoryIndex,

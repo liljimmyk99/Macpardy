@@ -1,4 +1,4 @@
-# Macpardy! Buzzer WebSocket Protocol — v9
+# Macpardy! Buzzer WebSocket Protocol — v10
 
 All WebSocket messages are JSON objects with a required top-level `type` string field
 and an optional `payload` object. Unknown `type` values should be silently ignored by
@@ -30,7 +30,7 @@ and closes the connection.
 ```json
 {
   "type": "join",
-  "version": 9,
+  "version": 10,
   "code": "AB3XYZ",
   "device": "9f3c0a6e1b2d4c5e8f7a6b5c4d3e2f10",
   "diag": { "cause": "watchdog", "connectedMs": 720000, "hiddenMs": 38000, "hiddenAtLoss": false, "secondsSince": 41 }
@@ -39,7 +39,7 @@ and closes the connection.
 
 | Field     | Type   | Description                                              |
 |-----------|--------|----------------------------------------------------------|
-| `version` | int    | Required. Protocol version the client speaks. Currently always `9`. A missing version is not decodable and the message is ignored. |
+| `version` | int    | Required. Protocol version the client speaks: `10` today. The server accepts `9` and `10` (a v9 page only lacks `uiEvent`); anything else gets `joinRejected` with `unsupportedVersion`. A missing version is not decodable and the message is ignored. |
 | `code`    | string | The 6-character join code ("Game PIN") shown on the host's screen. |
 | `device`  | string | Optional (v9). A random id the page keeps in `sessionStorage` (`macpardy.deviceId`), 1–64 letters, digits or `-`. Per tab: it survives a reload or the browser restoring the tab, but two tabs on one phone get different ids so they can't take a team from each other. Lets a phone that reconnects get its team back; see [Team claims](#team-claims-and-presence). Anything else is ignored. |
 | `diag`    | object | Optional (v8). How this phone's previous connection ended; see below. |
@@ -138,6 +138,28 @@ answer until time runs out or the host reveals the correct response. Answered wi
 
 ---
 
+### `uiEvent`
+
+Something that happened only on the phone's page, for the Mac's log (v10, issue #87).
+Fire-and-forget: the server never answers. Events from while the page has no joined
+connection (the PIN screen, a reconnect) wait in a small queue on the page (20 at most) and
+go out right after the next `joinAccepted`.
+
+```json
+{ "type": "uiEvent", "event": "disabledBuzzerTap", "at": 1762180000123 }
+```
+
+| Field   | Type   | Description |
+|---------|--------|-------------|
+| `event` | string | One of `pageVisible`, `pageHidden`, `disabledBuzzerTap` (a tap on the buzzer while it can't be pressed; at most one a second), `teamPickerOpened`, `pinSubmitted`, `pinRejected`, `reconnecting`. |
+| `at`    | number | Optional. The page's clock (ms since 1970) when it happened; logged as phone time, since queued events arrive late. |
+
+The server logs each as a `phone:` line at debug level. It ignores events before a valid
+`join`, unknown `event` values, and anything past 30 events in 10 s from one connection. A
+`uiEvent` without `event` isn't decodable and is logged as an ignored message.
+
+---
+
 ## Server → Client messages
 
 These messages are sent by the Macpardy app to one or all phone browsers.
@@ -150,7 +172,7 @@ Sent to the joining phone after a valid join code is received.
 {
   "type": "joinAccepted",
   "payload": {
-    "version": 8,
+    "version": 10,
     "teams": [
       { "id": "6F9619FF-8B86-D011-B42D-00C04FC964FF", "name": "Team 1", "color": "blue", "claimed": false }
     ]
@@ -160,7 +182,7 @@ Sent to the joining phone after a valid join code is received.
 
 | Payload field | Type     | Description                                                     |
 |---------------|----------|-----------------------------------------------------------------|
-| `version`     | int      | Protocol version the server is speaking. Currently always `9`.  |
+| `version`     | int      | Protocol version the server is speaking. Currently always `10`. |
 | `teams`       | object[] | Teams in display order (at most 4). `claimed` is true while a phone holds the team; the phone disables that team's Join button. `color` is one of `blue`, `red`, `green`, `yellow`, `purple`, `orange`. |
 
 ---
@@ -591,6 +613,7 @@ Final answering is over (the host left the Final); the phone returns to the buzz
 | 7       | Issue #80. Adds `submitAnswer`, `answerInfo`, `answerSaved`, `answerRejected` and `answerClosed`. A page left open from an older version is told to reload, since it couldn't answer. |
 | 8       | Issue #81. `join` may carry `diag`, the phone's report on how its previous connection ended. |
 | 9       | Issue #84. `join` may carry `device`; a rejoining phone gets its team back. Heartbeat TTL 5 s → 60 s (join TTL stays 5 s). The page's watchdog ignores time hidden, and the page rejoins once on its own after a lost connection. |
+| 10      | Issue #87. Adds `uiEvent`. The server still accepts v9 pages, which only lack it. |
 
 ## Troubleshooting disconnects
 
@@ -609,6 +632,11 @@ it picks one), a 4-character connection id, how long it was connected, and the r
 | `removed by the host` | The host removed the phone in the Buzzers popover. |
 | `the buzzer server stopped` | Complete Game, resuming a save, or leaving the game. |
 | `join rejected (…)` | Wrong PIN, too many attempts, or an old page (`unsupportedVersion`: reload it). |
+
+With the Logs window's level at **Debug**, every message a phone sends (except `pong`) is a
+`phone:` line too (`buzz`, `claim 'Blue'`, `submitWager $400`, `submitAnswer (length 14)`; an
+answer's text and the PIN are never logged), along with its `uiEvent`s such as
+`page hidden` or `reconnect attempt`.
 
 Two more lines help:
 

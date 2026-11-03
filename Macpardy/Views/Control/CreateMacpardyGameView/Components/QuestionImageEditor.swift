@@ -30,12 +30,12 @@ struct QuestionImageEditor: View {
                     ProgressView()
                         .controlSize(.small)
                 }
-                Button(image == nil ? LocalizedStringKey("create.question.image_add") : "create.question.image_replace") {
+                LoggedButton(image == nil ? LocalizedStringKey("create.question.image_add") : "create.question.image_replace", log: "Editor › Clue › Image › \(image == nil ? "Add" : "Replace")") {
                     showImporter = true
                 }
                 .disabled(isImporting)
                 if image != nil {
-                    Button("create.question.image_remove", role: .destructive) {
+                    LoggedButton("create.question.image_remove", log: "Editor › Clue › Image › Remove", role: .destructive) {
                         image = nil
                     }
                     .disabled(isImporting)
@@ -56,6 +56,7 @@ struct QuestionImageEditor: View {
             isPresented: $showImporter,
             allowedContentTypes: ImageImporter.acceptedTypes
         ) { result in
+            UIActionLog.filePicked("file importer 'Clue image'", result)
             switch result {
             case .success(let url):
                 importImage(from: url)
@@ -63,6 +64,7 @@ struct QuestionImageEditor: View {
                 AppLogger.control.error("Image picker failed: \(error.localizedDescription)")
             }
         }
+        .logPresentation("file importer 'Clue image'", isPresented: showImporter)
     }
 
     @ViewBuilder
@@ -93,6 +95,7 @@ struct QuestionImageEditor: View {
             isImporting = false
             switch result {
             case .success(let output):
+                AppLogger.control.state("Clue image imported: \(output.data.count) bytes .\(output.fileExtension)")
                 image = QuestionImage(
                     path: "\(BoardPackage.imagesDirectory)/\(UUID().uuidString.lowercased()).\(output.fileExtension)",
                     data: output.data

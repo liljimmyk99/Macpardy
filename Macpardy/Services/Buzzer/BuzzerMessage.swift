@@ -268,11 +268,41 @@ nonisolated enum ClientMessage {
 
     /// Final Macpardy answer. The latest submission counts while answering is open.
     case submitAnswer(answer: String)
+
+    /// Something that happened on the phone's page only, for the Mac's log
+    /// (v10). Fire-and-forget: never answered. `event` is checked against
+    /// `PhoneUIEvent` by the server; `at` is the page's clock in ms.
+    case uiEvent(event: String, at: Double?)
+}
+
+/// The page events a phone reports in `uiEvent` (v10). Anything else is ignored.
+nonisolated enum PhoneUIEvent: String, CaseIterable {
+    case pageVisible
+    case pageHidden
+    /// A tap on the buzzer while it can't be pressed.
+    case disabledBuzzerTap
+    case teamPickerOpened
+    case pinSubmitted
+    case pinRejected
+    case reconnecting
+
+    /// How the Mac's log describes it.
+    var logDescription: String {
+        switch self {
+        case .pageVisible: "page visible"
+        case .pageHidden: "page hidden"
+        case .disabledBuzzerTap: "tapped the buzzer while it was disabled"
+        case .teamPickerOpened: "team picker opened"
+        case .pinSubmitted: "Game PIN submitted"
+        case .pinRejected: "Game PIN rejected"
+        case .reconnecting: "reconnect attempt"
+        }
+    }
 }
 
 extension ClientMessage: Decodable {
     private enum CodingKeys: String, CodingKey {
-        case type, code, version, teamID, amount, answer, diag, device
+        case type, code, version, teamID, amount, answer, diag, device, event, at
     }
 
     init(from decoder: Decoder) throws {
@@ -299,6 +329,11 @@ extension ClientMessage: Decodable {
             self = .submitWager(amount: try container.decode(Int.self, forKey: .amount))
         case "submitAnswer":
             self = .submitAnswer(answer: try container.decode(String.self, forKey: .answer))
+        case "uiEvent":
+            self = .uiEvent(
+                event: try container.decode(String.self, forKey: .event),
+                at: try? container.decodeIfPresent(Double.self, forKey: .at)
+            )
         default:
             throw DecodingError.dataCorruptedError(
                 forKey: .type,

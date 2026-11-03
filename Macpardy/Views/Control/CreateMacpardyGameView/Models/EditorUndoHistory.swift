@@ -48,6 +48,11 @@ struct EditorChange: Equatable {
     /// Which field changed, e.g. `r1.c2.q3.clue`.
     let target: String
 
+    /// "editClue r1.c2.q3.clue": the kind and field, never the text.
+    var logDescription: String {
+        target.isEmpty ? kind.rawValue : "\(kind.rawValue) \(target)"
+    }
+
     /// Names the first difference between two drafts.
     static func between(_ old: BoardDraft, _ new: BoardDraft) -> EditorChange {
         if old.title != new.title { return EditorChange(kind: .editTitle, target: "title") }

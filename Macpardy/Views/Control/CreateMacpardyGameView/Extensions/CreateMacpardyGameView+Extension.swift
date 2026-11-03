@@ -119,6 +119,7 @@ extension CreateMacpardyGameView {
         let draft = currentDraft
 
         if draft.trimmedTitle.isEmpty {
+            AppLogger.control.state("Editor save blocked: the game has no title")
             validationMessage = String(localized: "create.validation.missing_title")
             showValidationAlert = true
             if request != nil {
@@ -128,6 +129,7 @@ extension CreateMacpardyGameView {
         }
 
         if !confirmedUnfilled, !draft.unfilledFields().isEmpty {
+            AppLogger.control.state("Editor save paused: \(draft.unfilledFields().count) field(s) still have default text")
             unfilledAlertRequest = request
             showUnfilledAlert = true
             return
@@ -139,6 +141,7 @@ extension CreateMacpardyGameView {
         // which need a package. New games are always saved as packages.
         exportContentType = isEditingExistingBoard && !draft.hasImages ? .json : .macpardyBoard
         exportDocument = FileManagerService().makeExportDocument(for: draft.makeBoards(), title: draft.trimmedTitle)
+        AppLogger.control.state("Editor export ready: '\(draft.trimmedTitle)' as \(exportContentType == .json ? "JSON" : ".macpardy package")\(draft.hasImages ? " with images" : "")")
         showFileExporter = true
     }
 
@@ -177,6 +180,7 @@ extension CreateMacpardyGameView {
     /// Fills the editor with a board queued by "Edit game", if there is one.
     func loadPendingDraft() {
         guard let draft = editorSession.takePendingDraft() else { return }
+        AppLogger.control.state("Editor loaded board '\(draft.trimmedTitle)'")
         showDraft(draft)
         currentRound = 0
         selectedQuestion = nil

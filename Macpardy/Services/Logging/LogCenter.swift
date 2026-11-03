@@ -44,6 +44,9 @@ final class LogCenter {
     /// Hands a line to the shared center. Safe from any thread or actor.
     /// Lines logged before `start()` wait in the channels.
     nonisolated static func submit(_ entry: LogEntry) {
+        #if DEBUG
+        LogCapture.current?.record(entry)
+        #endif
         uiChannel.continuation.yield(entry)
         fileChannel.continuation.yield(entry)
     }

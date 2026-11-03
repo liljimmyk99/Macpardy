@@ -45,6 +45,22 @@ let project = Project(
                 // Kept as a folder so the games can be listed from the bundle.
                 .folderReference(path: "Macpardy/Resources/Games"),
             ],
+            scripts: [
+                // Fails the build on a bare `Button` / `.onTapGesture` in Views/ (#87).
+                // Skipped with a warning when SwiftLint isn't installed.
+                .pre(
+                    script: """
+                    export PATH="$PATH:/opt/homebrew/bin:/usr/local/bin"
+                    if command -v swiftlint >/dev/null 2>&1; then
+                        cd "$SRCROOT" && swiftlint lint --quiet --strict --config .swiftlint.yml
+                    else
+                        echo "warning: SwiftLint is not installed, so the unlogged_tap check was skipped. Install it with: brew install swiftlint"
+                    fi
+                    """,
+                    name: "SwiftLint",
+                    basedOnDependencyAnalysis: false
+                ),
+            ],
             dependencies: [
                 .package(product: "ZIPFoundation"),
             ],

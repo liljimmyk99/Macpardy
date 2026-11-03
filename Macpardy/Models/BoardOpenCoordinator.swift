@@ -36,10 +36,18 @@ final class BoardOpenCoordinator {
     }
 
     var isImporterPresented = false
-    var pendingBoard: PendingBoard?
-    var pendingReplacement: PendingReplacement?
-    var pendingEdit: PendingEdit?
+    var pendingBoard: PendingBoard? {
+        didSet { log.change("BoardOpenCoordinator.pendingBoard", from: oldValue?.url.lastPathComponent, to: pendingBoard?.url.lastPathComponent) }
+    }
+    var pendingReplacement: PendingReplacement? {
+        didSet { log.change("BoardOpenCoordinator.pendingReplacement", from: oldValue?.url.lastPathComponent, to: pendingReplacement?.url.lastPathComponent) }
+    }
+    var pendingEdit: PendingEdit? {
+        didSet { log.change("BoardOpenCoordinator.pendingEdit", from: oldValue?.url.lastPathComponent, to: pendingEdit?.url.lastPathComponent) }
+    }
     var loadError: BoardLoadReport?
+
+    private let log = AppLogger.database
 
     @ObservationIgnored
     let recents: RecentBoards
@@ -67,6 +75,7 @@ final class BoardOpenCoordinator {
     // MARK: - Choosing a file
 
     func requestImport() {
+        log.state("Board import requested")
         isImporterPresented = true
     }
 

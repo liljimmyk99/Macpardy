@@ -108,6 +108,24 @@ system log and to the app's own log (Logs window, exports), so don't log Final a
 anything more personal than team names, local IPs and browser versions. Pass `team:` / `remote:` on buzzer
 lines about one phone so the Logs window can filter them.
 
+**Verbose log (#87).** Every tap, menu command, shortcut, window/sheet change, phone action
+and model state change also gets a `.debug` line (hidden at the Logs window's default Info
+level, but saved and exported). See [`docs/architecture.md`](docs/architecture.md#verbose-log).
+- In `Views/`, use `LoggedButton` / `.onLoggedTapGesture` instead of `Button` /
+  `.onTapGesture`, with a location like `"Control › Timer › Pause"`. Menu items pass
+  `source: .menu`; a key press is detected and logged as `shortcut:` on its own. The
+  `unlogged_tap` SwiftLint rule (`.swiftlint.yml`, run by a build phase when `swiftlint` is
+  installed) fails the build otherwise. Opt out only with
+  `// swiftlint:disable:next unlogged_tap - <reason>`. `Views/Logs/` is exempt.
+- Add `.logPresentation(_:isPresented:)` to sheets, alerts, dialogs, popovers and file
+  pickers, and `.logCommit(_:text:)` to text fields (it logs the length, never the text).
+- Log model changes where they happen, as `log.change("Type.field", from: old, to: new)`
+  (skipped when equal) or `log.state("…")` from intent methods that know the reason.
+  Conform new models to `LogDescribable` for a safe one-line form.
+- Never log clue text, answer text, typed editor text or Final answers. Commit points only:
+  no per-keystroke or per-tick lines. Log text is developer English, not localized.
+- Tests can check what was logged with `LogCapture.capture { … }` (Debug builds).
+
 ### Tests
 - XCTest, in `MacpardyTests/`, one file per type under test (`<Type>Tests.swift`), classes
   marked `@MainActor`, `@testable import Macpardy`.

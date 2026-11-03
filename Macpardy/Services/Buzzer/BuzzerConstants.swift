@@ -30,7 +30,21 @@ nonisolated enum BuzzerConstants {
     /// Current wire-protocol version sent in joinAccepted messages.
     /// v8 (#81): `join` may carry the phone's `diag` report.
     /// v9 (#84): `join` may carry a `device` id; a returning phone gets its team back.
-    static let protocolVersion = 9
+    /// v10 (#87): phones may send `uiEvent` messages for the Mac's log.
+    static let protocolVersion = 10
+
+    /// Oldest page version still allowed to join. v9 pages only lack `uiEvent`,
+    /// so a page left open across an update keeps working.
+    static let minimumProtocolVersion = 9
+
+    /// Whether a page speaking `version` may join.
+    static func isSupported(version: Int) -> Bool {
+        (minimumProtocolVersion...protocolVersion).contains(version)
+    }
+
+    /// `uiEvent` messages one phone may send within `uiEventWindow`; extras are dropped.
+    static let maxUIEvents = 30
+    static let uiEventWindow: TimeInterval = 10.0
 
     /// Buzzes received within this long of the first one count as a tie.
     static let tieWindow: TimeInterval = 0.075

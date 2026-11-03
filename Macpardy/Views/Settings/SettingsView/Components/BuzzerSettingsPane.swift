@@ -33,6 +33,7 @@ struct BuzzerSettingsPane: View {
                         if !focused { commit() }
                     }
                     .disabled(!buzzersEnabled)
+                    .logCommit("Settings › Buzzers › Port", text: draft, isFocused: isFocused)
             } footer: {
                 Text("settings.buzzers.port_footer \(AppSettings.portRange.lowerBound) \(AppSettings.portRange.upperBound)")
             }

@@ -37,7 +37,7 @@ extension QuestionControlView {
 
             Spacer()
 
-            Button {
+            LoggedButton(log: "Control › Question › Reveal answer") {
                 gameState.revealAnswer()
             } label: {
                 Text(gameState.phase == .answer ? "control.question.button.answer_revealed" : "control.question.button.reveal_answer")

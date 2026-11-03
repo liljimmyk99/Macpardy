@@ -8,13 +8,25 @@ import Foundation
 
 @Observable
 final class GameState {
-    var game: Game
+    var game: Game {
+        didSet {
+            guard oldValue.currentRound != game.currentRound else { return }
+            log.change("GameState.round", from: LogLabel(roundLabel(oldValue.currentRound, in: oldValue)), to: LogLabel(roundLabel(game.currentRound, in: game)))
+        }
+    }
 
     // UI State
-    var currentQuestion: Question?
+    var currentQuestion: Question? {
+        didSet {
+            guard oldValue?.id != currentQuestion?.id else { return }
+            log.change("GameState.currentClue", from: LogLabel(clueLabel(oldValue)), to: LogLabel(clueLabel(currentQuestion)))
+        }
+    }
     var currentCategoryTitle: String?
-    var timer = GameTimer(seconds: TimeInterval(AppSettings.questionTimerSeconds()))
-    var phase: GamePhase = .setup
+    var timer = GameTimer(name: "Question timer", seconds: TimeInterval(AppSettings.questionTimerSeconds()))
+    var phase: GamePhase = .setup {
+        didSet { log.change("GameState.phase", from: oldValue, to: phase) }
+    }
     /// True from the start of a round until its first clue is picked, so the
     /// Display plays the board intro (categories one by one, then the clues).
     /// Not saved: a resumed game shows its board straight away.
@@ -23,13 +35,17 @@ final class GameState {
     /// on the Control and the Display. It stays put after its clue is played
     /// (and is drawn only on open tiles), so the next arrow press starts from
     /// where the host was. Not saved.
-    var highlightedTile: BoardPosition?
+    var highlightedTile: BoardPosition? {
+        didSet { log.change("GameState.highlightedTile", from: oldValue, to: highlightedTile) }
+    }
 
     // Buzz-in response (issue #59)
     /// Counts down the answering team's time after a phone buzz wins.
-    let responseTimer = GameTimer(seconds: TimeInterval(AppSettings.responseSeconds()))
+    let responseTimer = GameTimer(name: "Response timer", seconds: TimeInterval(AppSettings.responseSeconds()))
     /// The team that buzzed in and hasn't been judged yet.
-    private(set) var answeringTeamID: UUID?
+    private(set) var answeringTeamID: UUID? {
+        didSet { log.change("GameState.answeringTeam", from: LogLabel(teamLabel(oldValue)), to: LogLabel(teamLabel(answeringTeamID))) }
+    }
 
     /// How long a team has to answer after buzzing in (Settings > Game).
     var responseSeconds: TimeInterval { TimeInterval(AppSettings.responseSeconds(settings)) }
@@ -42,8 +58,12 @@ final class GameState {
     }
 
     // Daily Double State
-    var dailyDoubleTeamID: UUID?
-    var dailyDoubleWager: Int = 0
+    var dailyDoubleTeamID: UUID? {
+        didSet { log.change("GameState.dailyDoubleTeam", from: LogLabel(teamLabel(oldValue)), to: LogLabel(teamLabel(dailyDoubleTeamID))) }
+    }
+    var dailyDoubleWager: Int = 0 {
+        didSet { log.change("GameState.dailyDoubleWager", from: oldValue, to: dailyDoubleWager) }
+    }
 
     // Final Macpardy State
     var finalMacpardyWagers: [UUID: Int] = [:]
@@ -51,10 +71,16 @@ final class GameState {
     var finalMacpardyAnswers: [UUID: String] = [:]
     /// The team whose answer and wager the Display is showing, after the
     /// correct response is revealed. The host shows one team at a time.
-    var finalMacpardyRevealedTeamID: UUID?
+    var finalMacpardyRevealedTeamID: UUID? {
+        didSet {
+            log.change("GameState.finalRevealedTeam", from: LogLabel(teamLabel(oldValue)), to: LogLabel(teamLabel(finalMacpardyRevealedTeamID)))
+        }
+    }
 
     /// Where timer lengths are read from (Settings). Tests swap in their own.
     @ObservationIgnored var settings: UserDefaults = .standard
+
+    private let log = AppLogger.control
 
     // Undo (Edit menu): set by the Control window.
     @ObservationIgnored var scoreUndoManager: UndoManager?
@@ -107,6 +133,7 @@ final class GameState {
     }
 
     func restore(from snapshot: GameSnapshot) {
+        log.state("GameState restored from save: \(snapshot.game.rounds.count) rounds, \(snapshot.game.teams.count) teams, phase \(snapshot.phase.logDescription)")
         clearScoreUndo()
         self.game = snapshot.game
         self.phase = snapshot.phase
@@ -158,6 +185,7 @@ final class GameState {
     }
 
     func submitDailyDoubleWager(teamID: UUID, wager: Int) {
+        log.state("Daily Double wager submitted: \(teamLabel(teamID)) $\(wager)", team: teamName(teamID))
         cancelResponse()
         dailyDoubleTeamID = teamID
         dailyDoubleWager = wager
@@ -253,12 +281,20 @@ final class GameState {
     func setFinalWager(teamID: UUID, amount: Int) -> Int? {
         guard let team = game.teams.first(where: { $0.id == teamID }), isFinalEligible(team) else { return nil }
         let clamped = min(max(0, amount), maxFinalWager(for: team))
+        log.change(
+            "\(teamLabel(teamID)) Final wager",
+            from: finalMacpardyWagers[teamID],
+            to: clamped,
+            reason: clamped == amount ? nil : "asked for \(amount)",
+            team: team.name
+        )
         finalMacpardyWagers[teamID] = clamped
         triggerSave()
         return clamped
     }
 
     func clearFinalWager(teamID: UUID) {
+        log.change("\(teamLabel(teamID)) Final wager", from: finalMacpardyWagers[teamID], to: nil, team: teamName(teamID))
         finalMacpardyWagers[teamID] = nil
         triggerSave()
     }
@@ -267,8 +303,10 @@ final class GameState {
     func applyFinalWagerDefaults() {
         for team in game.teams {
             if !isFinalEligible(team) {
+                log.change("\(teamLabel(team.id)) Final wager", from: finalMacpardyWagers[team.id], to: 0, reason: "not eligible", team: team.name)
                 finalMacpardyWagers[team.id] = 0
             } else if finalMacpardyWagers[team.id] == nil {
+                log.change("\(teamLabel(team.id)) Final wager", from: nil, to: maxFinalWager(for: team), reason: "no wager: all in", team: team.name)
                 finalMacpardyWagers[team.id] = maxFinalWager(for: team)
             }
         }
@@ -302,7 +340,10 @@ final class GameState {
               game.teams.contains(where: { $0.id == teamID }) else { return }
         let cleaned = FinalAnswerBook.normalize(answer)
         guard !cleaned.isEmpty else { return }
-        finalMacpardyAnswers[teamID] = String(cleaned.prefix(FinalAnswerBook.maxLength))
+        let stored = String(cleaned.prefix(FinalAnswerBook.maxLength))
+        // The answer itself is never logged, only its length.
+        log.state("\(teamLabel(teamID)) Final answer saved (\(LogValue.length(of: stored)))", team: teamName(teamID))
+        finalMacpardyAnswers[teamID] = stored
         triggerSave()
     }
 
@@ -321,28 +362,45 @@ final class GameState {
         return game.teams.first(where: { $0.id == id })
     }
 
-    func adjustScore(for teamID: UUID, by amount: Int) {
+    /// Why a score changed, for the log.
+    enum ScoreReason: String {
+        case correct, incorrect
+        /// The host's +/- buttons, outside judging a clue.
+        case hostEdit = "host edit"
+        case reset, undo, redo
+    }
+
+    func adjustScore(for teamID: UUID, by amount: Int, reason: ScoreReason = .hostEdit) {
         guard let team = game.teams.first(where: { $0.id == teamID }) else { return }
         let name = amount < 0 ? String(localized: "undo.deduct_points") : String(localized: "undo.award_points")
-        setScore(for: teamID, to: team.score + amount, undoName: name)
+        setScore(for: teamID, to: team.score + amount, undoName: name, reason: reason)
     }
 
     func resetScore(for teamID: UUID) {
-        setScore(for: teamID, to: 0, undoName: String(localized: "undo.reset_score"))
+        setScore(for: teamID, to: 0, undoName: String(localized: "undo.reset_score"), reason: .reset)
     }
 
     /// Sets a team's score and registers the step that puts it back. Only
     /// scores can be undone; moving between clues or rounds can't.
-    private func setScore(for teamID: UUID, to newScore: Int, undoName: String) {
+    private func setScore(for teamID: UUID, to newScore: Int, undoName: String, reason: ScoreReason) {
         guard let index = game.teams.firstIndex(where: { $0.id == teamID }) else { return }
         let previous = game.teams[index].score
+        let delta = newScore - previous
+        log.change(
+            "\(teamLabel(teamID)) score",
+            from: previous,
+            to: newScore,
+            reason: "\(delta >= 0 ? "+" : "")\(delta), \(reason.rawValue)",
+            team: game.teams[index].name
+        )
         game.teams[index].score = newScore
         triggerSave()
 
         guard previous != newScore, let scoreUndoManager else { return }
         scoreUndoManager.registerUndo(withTarget: self) { state in
             // Registered while undoing, so it becomes the redo.
-            state.setScore(for: teamID, to: previous, undoName: undoName)
+            let reason: ScoreReason = state.scoreUndoManager?.isRedoing == true ? .redo : .undo
+            state.setScore(for: teamID, to: previous, undoName: undoName, reason: reason)
         }
         scoreUndoManager.setActionName(undoName)
     }
@@ -371,6 +429,7 @@ final class GameState {
     }
 
     func loadGame(boards: [MacpardyBoard]) {
+        log.state("GameState loaded a new game: \(boards.map { "\($0.round.logDescription) '\($0.title)'" }.joined(separator: ", "))")
         clearScoreUndo()
         self.game = Game(
             rounds: boards,
@@ -393,6 +452,7 @@ final class GameState {
     /// and the phase goes back to setup. The app then returns to the launch
     /// screen and clears the save.
     func endGame() {
+        log.state("GameState ended the game. Final scores: \(scoreSummary)")
         clearScoreUndo()
         pendingSaveTask?.cancel()
         pendingSaveTask = nil
@@ -414,16 +474,21 @@ final class GameState {
         let availableColors = ["blue", "red", "green", "yellow", "purple", "orange"]
         let chosenColor = availableColors[(count - 1) % availableColors.count]
         game.teams.append(Team(name: teamName, score: 0, color: chosenColor))
+        log.state("Team added: \(teamLabel(game.teams.last?.id)) \(chosenColor)", team: teamName)
         triggerSave()
     }
 
     func removeTeam(at index: Int) {
         guard game.teams.indices.contains(index) else { return }
+        log.state("Team removed: \(teamLabel(game.teams[index].id))", team: game.teams[index].name)
         game.teams.remove(at: index)
         triggerSave()
     }
 
     func removeTeam(id: UUID) {
+        if game.teams.contains(where: { $0.id == id }) {
+            log.state("Team removed: \(teamLabel(id))", team: teamName(id))
+        }
         game.teams.removeAll(where: { $0.id == id })
         triggerSave()
     }
@@ -431,6 +496,7 @@ final class GameState {
     func removeTeam(at offsets: IndexSet) {
         for index in offsets.sorted(by: >) {
             if game.teams.indices.contains(index) {
+                log.state("Team removed: \(teamLabel(game.teams[index].id))", team: game.teams[index].name)
                 game.teams.remove(at: index)
             }
         }
@@ -485,6 +551,43 @@ final class GameState {
     func cancelResponse() {
         answeringTeamID = nil
         responseTimer.reset(seconds: responseSeconds)
+    }
+
+    // MARK: - Log labels (#87)
+
+    /// "Team 2 'Blue'", or "none".
+    func teamLabel(_ teamID: UUID?) -> String {
+        guard let teamID else { return "none" }
+        guard let index = game.teams.firstIndex(where: { $0.id == teamID }) else { return "removed team" }
+        return "Team \(index + 1) '\(game.teams[index].name)'"
+    }
+
+    private func teamName(_ teamID: UUID) -> String? {
+        game.teams.first(where: { $0.id == teamID })?.name
+    }
+
+    /// "R1 · 'Rivers' · $400 (C1 row 2)", found on the board. The clue's text is never logged.
+    func clueLabel(_ question: Question?) -> String {
+        guard let question else { return "none" }
+        for board in game.rounds {
+            for (column, category) in board.categories.enumerated() {
+                guard let row = category.questions.firstIndex(where: { $0.id == question.id }) else { continue }
+                let dd = question.isDailyDouble ? " · Daily Double" : ""
+                return "\(board.round.logDescription) · '\(category.title)' · $\(question.value)\(dd) (C\(column + 1) row \(row + 1))"
+            }
+        }
+        return "Final · '\(currentCategoryTitle ?? "?")' (placeholder clue)"
+    }
+
+    private func roundLabel(_ index: Int, in game: Game) -> String {
+        guard game.rounds.indices.contains(index) else { return "\(index + 1)" }
+        let board = game.rounds[index]
+        return "\(index + 1) \(board.round.logDescription) '\(board.title)'"
+    }
+
+    /// "Team 1 'Red' $400, Team 2 'Blue' $0".
+    var scoreSummary: String {
+        game.teams.enumerated().map { "Team \($0.offset + 1) '\($0.element.name)' $\($0.element.score)" }.joined(separator: ", ")
     }
 
     private func markQuestionPlayed(_ question: Question) {

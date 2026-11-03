@@ -15,14 +15,14 @@ struct DraftBoardControls: View {
     var body: some View {
         HStack(spacing: 12) {
             if currentRound > 0 {
-                Button(previousRoundLabel) {
+                LoggedButton(previousRoundLabel, log: "Editor › Previous round") {
                     currentRound -= 1
                 }
                 .buttonStyle(.bordered)
             }
 
             if currentRound < 2 {
-                Button(nextRoundLabel) {
+                LoggedButton(nextRoundLabel, log: "Editor › Next round") {
                     currentRound += 1
                 }
                 .buttonStyle(.bordered)
@@ -32,7 +32,7 @@ struct DraftBoardControls: View {
 
             UnfilledSummary(unfilled: unfilled)
 
-            Button("create.button.save_game") {
+            LoggedButton("create.button.save_game", log: "Editor › Save game") {
                 saveGame()
             }
             .buttonStyle(.borderedProminent)

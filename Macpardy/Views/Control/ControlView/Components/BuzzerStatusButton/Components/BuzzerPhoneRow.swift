@@ -31,7 +31,7 @@ struct BuzzerPhoneRow: View {
             Spacer()
 
             if isConnected {
-                Button("control.team.remove_phone") {
+                LoggedButton("control.team.remove_phone", log: "Buzzers popover › '\(team.name)' › Remove phone") {
                     Task { await buzzerState.removePhone(forTeam: team.id) }
                 }
                 .help("control.team.remove_phone.help")

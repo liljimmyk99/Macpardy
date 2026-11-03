@@ -32,7 +32,8 @@ extension LaunchScreenView {
                 title: "launch.tile.play",
                 caption: "launch.tile.play.caption",
                 systemImage: "play.fill",
-                shortcut: .importBoard
+                shortcut: .importBoard,
+                log: "Launch › Play"
             ) {
                 handleOpenExistingGame()
             }
@@ -41,7 +42,8 @@ extension LaunchScreenView {
                 title: "launch.tile.new",
                 caption: "launch.tile.new.caption",
                 systemImage: "plus",
-                shortcut: .newBoard
+                shortcut: .newBoard,
+                log: "Launch › New"
             ) {
                 showNewGameSheet = true
             }
@@ -50,7 +52,8 @@ extension LaunchScreenView {
                 title: "launch.tile.edit",
                 caption: "launch.tile.edit.caption",
                 systemImage: "square.and.pencil",
-                shortcut: nil
+                shortcut: nil,
+                log: "Launch › Edit"
             ) {
                 openPicker(.edit)
             }
