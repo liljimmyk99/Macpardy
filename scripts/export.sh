@@ -10,7 +10,7 @@ fi
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 EXPORT_DIR="${1:-"$ROOT_DIR/build/exports"}"
 
-for tool in tuist xcodebuild codesign diskutil hdiutil ditto; do
+for tool in git tuist xcodebuild codesign diskutil hdiutil ditto; do
     if ! command -v "$tool" >/dev/null 2>&1; then
         printf 'Required tool not found: %s\n' "$tool" >&2
         exit 1
@@ -30,6 +30,13 @@ APP_NAME="Macpardy"
 BUILT_APP="$BUILD_DIR/Build/Products/Release/$APP_NAME.app"
 EXPORTED_APP="$EXPORT_DIR/$APP_NAME.app"
 EXPORTED_DMG="$EXPORT_DIR/$APP_NAME.dmg"
+# CFBundleVersion. Defaults to the commit count, which only goes up on master, so local
+# and CI exports of the same commit agree. Set BUILD_NUMBER to override it.
+BUILD_NUMBER="${BUILD_NUMBER:-$(git -C "$ROOT_DIR" rev-list --count HEAD)}"
+if [[ ! "$BUILD_NUMBER" =~ ^[0-9]+$ ]]; then
+    printf 'BUILD_NUMBER must be a whole number, got: %s\n' "$BUILD_NUMBER" >&2
+    exit 1
+fi
 STAGING_DIR="$(mktemp -d "${TMPDIR:-/tmp}/macpardy-export.XXXXXX")"
 STAGED_APP="$STAGING_DIR/$APP_NAME.app"
 STAGED_DMG="$STAGING_DIR/$APP_NAME.dmg"
@@ -52,6 +59,7 @@ xcodebuild -quiet \
     CODE_SIGNING_ALLOWED=YES \
     CODE_SIGNING_REQUIRED=YES \
     ENABLE_HARDENED_RUNTIME=YES \
+    CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
     clean build
 
 if [[ ! -d "$BUILT_APP" ]]; then
@@ -61,6 +69,12 @@ fi
 
 ditto "$BUILT_APP" "$STAGED_APP"
 codesign --verify --deep --strict --verbose=2 "$STAGED_APP"
+
+BUNDLE_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$STAGED_APP/Contents/Info.plist")"
+if [[ "$BUNDLE_VERSION" != "$BUILD_NUMBER" ]]; then
+    printf 'Expected CFBundleVersion %s, got %s\n' "$BUILD_NUMBER" "$BUNDLE_VERSION" >&2
+    exit 1
+fi
 
 SIGNATURE_INFO="$(codesign --display --verbose=4 "$STAGED_APP" 2>&1)"
 if [[ "$SIGNATURE_INFO" != *"Signature=adhoc"* || "$SIGNATURE_INFO" != *"adhoc,runtime"* ]]; then
@@ -99,5 +113,6 @@ rm -rf "$EXPORTED_APP"
 mv "$STAGED_APP" "$EXPORTED_APP"
 mv -f "$STAGED_DMG" "$EXPORTED_DMG"
 
+printf 'Build number: %s\n' "$BUILD_NUMBER"
 printf 'Exported app: %s\n' "$EXPORTED_APP"
 printf 'Exported DMG: %s\n' "$EXPORTED_DMG"

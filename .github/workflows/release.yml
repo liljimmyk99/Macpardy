@@ -1,0 +1,75 @@
+name: Release
+
+# Publishes a GitHub release whenever MARKETING_VERSION in Project.swift changes on master.
+# The tag is the bare version (e.g. 0.5.0); if that tag already exists, nothing happens.
+
+on:
+  push:
+    branches: [master]
+    paths: [Project.swift]
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # tags for the existence check, commits for the build number
+
+      - name: Read version
+        id: version
+        run: |
+          versions="$(sed -n 's/.*"MARKETING_VERSION": "\([^"]*\)".*/\1/p' Project.swift)"
+          if [[ "$(wc -l <<< "$versions")" -ne 1 || ! "$versions" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error file=Project.swift::Expected exactly one MARKETING_VERSION like 1.2.3, found: $versions"
+            exit 1
+          fi
+          echo "version=$versions" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/$versions" >/dev/null; then
+            echo "Tag $versions already exists; skipping the release."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: ./.github/actions/setup-build
+        if: steps.version.outputs.exists == 'false'
+
+      - name: Generate project
+        if: steps.version.outputs.exists == 'false'
+        run: tuist generate --no-open
+
+      - name: Test
+        if: steps.version.outputs.exists == 'false'
+        run: |
+          xcodebuild test \
+            -project Macpardy.xcodeproj \
+            -scheme Macpardy \
+            -destination 'platform=macOS' \
+            -derivedDataPath build/TestDerivedData \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY=-
+
+      - name: Export
+        if: steps.version.outputs.exists == 'false'
+        run: ./scripts/export.sh
+
+      - name: Publish release
+        if: steps.version.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh release create "$VERSION" build/exports/Macpardy.dmg \
+            --title "$VERSION" \
+            --target "$GITHUB_SHA" \
+            --generate-notes
