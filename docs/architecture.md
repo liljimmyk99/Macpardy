@@ -36,6 +36,8 @@ Defined in `App/MacpardyApp.swift`:
 | `control` | Opens at launch | `LaunchScreenView` until a game is chosen (`hasSelectedGame`), then `ControlView` |
 | `display` | Suppressed; opened from the board screen | `PresentationView`, only when a game is loaded |
 | `create-macpardy` | Suppressed; opened from New Game / Edit | `CreateMacpardyGameView` |
+| `shortcuts` | Suppressed; Help > Keyboard Shortcuts | `KeyboardShortcutsView` |
+| `logs` | Suppressed; Help > Show Logs, Buzzers popover > View Logs | `LogsView` (see [Logging](#logging)) |
 
 Only `control` opens at launch: the other windows are `.restorationBehavior(.disabled)`, so
 they never reappear from a previous session. Closing the Control window quits the app
@@ -212,15 +214,57 @@ Code: `Services/Buzzer/`. Protocol: [buzzer-protocol.md](buzzer-protocol.md).
   `FinalWagerBook`, `FinalAnswerBook`, `BuzzTieResolver`, `AttemptRateLimiter`, and `WebSocketFrameParser` are
   `nonisolated` value types with unit tests; `BuzzerServer` wires them to the network.
 - Constants (default port, heartbeat, tie window, rate limits) are in `BuzzerConstants`; the port the host picked in Settings comes from `AppSettings.buzzerPort()`.
+- **Diagnostics (#81):** every path that drops a phone passes a `DisconnectReason` to
+  `removeSession`, which logs one line: team (or IP), a 4-character id from the session UUID,
+  connected time and reason (close code, `NWError`, seconds since the last pong, …).
+  `ClientSession` keeps the handshake's User-Agent (`UserAgentSummary` shortens it) and the
+  last team it held. A phone's `join` may carry `PhoneDisconnectReport` (`diag`), logged as a
+  "Phone report" line. While the server runs, `BuzzerState` runs an `NWPathMonitor` and logs
+  Mac network changes (`NetworkPathSummary`); `LocalNetworkInterfaces` picks the join IP and
+  lists every candidate when none is usable.
 - The phone UI is a single self-contained page, `Resources/Buzzer/buzzer.html`, served from
   the app bundle.
+
+## Logging
+
+```
+ AppLogger.buzzer.info("…", team:, remote:)      (MacpardyLogger, nonisolated, any thread)
+      ├─▶ os.Logger  "\(message, privacy: .public)"   → Console.app
+      └─▶ LogCenter.submit(LogEntry)  ── two AsyncStreams ──┐
+                                                            ├─▶ LogCenter (@Observable, main actor)
+                                                            │     ring buffer, last 5,000 lines → Logs window (live)
+                                                            └─▶ LogFileStore (actor, detached consumer, in order)
+                                                                  Application Support/Macpardy/Logs/
+                                                                  macpardy-<launch, ISO 8601 basic>.jsonl
+```
+
+- **Facade:** `AppLogger.control/display/database/buzzer/network` are `MacpardyLogger`s with
+  `debug/info/notice/warning/error(_:team:remote:)`. Messages are plain strings, written
+  unredacted: the log never leaves the Mac unless the user exports it.
+- **`LogEntry`** (`Services/Logging/`): id, date (ms), level, category, message, optional team
+  and IP. Stored as JSON Lines; unreadable lines are skipped when reading.
+- **`LogCenter`** starts in `MacpardyApp.init` and drains the streams. Lines logged before that
+  wait in the streams (bounded).
+- **`LogFileStore`** appends through a `FileHandle`, batching and flushing at most about once a
+  second (immediately past 64 KB). `MacpardyAppDelegate.applicationWillTerminate` flushes,
+  waiting at most 0.5 s. It never logs through `AppLogger` (that would loop).
+- **Retention:** at launch, earlier runs are pruned oldest first to 9 files and 15 MB, leaving
+  room for the new run (one file, capped at 5 MB), so the folder stays within 10 runs / 20 MB.
+  Empty earlier runs are always deleted.
+- **Viewer:** `Views/Logs/LogsView` reads `LogCenter.entries` live, or an earlier run through
+  `LogFileStore.readRun`. `LogFilter` (category, minimum level, team, search) is a pure value
+  with tests; it defaults to Buzzer, Info and above.
+- **Export:** `LogExporter.makeArchive` zips each run as readable `logs/*.log` and raw
+  `raw/*.jsonl` plus `system-info.txt` (`SystemInfoReport`), off the main actor. The view saves
+  it with `.fileExporter` (`LogArchiveDocument`). Nothing is uploaded.
 
 ## Cross-cutting
 
 - **Concurrency:** default isolation is `MainActor`; pure logic is `nonisolated`; I/O lives
   in actors. See [AGENTS.md](../AGENTS.md#conventions).
 - **Localization:** String Catalog `Localizable.xcstrings`, dotted keys per screen.
-- **Logging:** `AppLogger` categories `control`, `display`, `database`, `buzzer`.
+- **Logging:** `AppLogger` categories `control`, `display`, `database` (Storage), `buzzer`,
+  `network`; see [Logging](#logging).
 - **Sandbox:** user-selected file read/write and network server + client. The client
   entitlement is only for accepting buzzer connections (see
   [buzzer-protocol.md](buzzer-protocol.md#sandbox-entitlements)).

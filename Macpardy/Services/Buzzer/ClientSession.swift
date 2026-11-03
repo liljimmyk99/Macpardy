@@ -7,7 +7,6 @@
 
 import Foundation
 import Network
-import OSLog
 
 /// Tracks the state of a single WebSocket client connection.
 ///
@@ -42,14 +41,34 @@ nonisolated final class ClientSession: Identifiable, @unchecked Sendable {
     /// when the endpoint is not an IP host/port pair.
     nonisolated let remoteKey: String
 
-    nonisolated init(connection: NWConnection) {
+    /// The browser's User-Agent header from the WebSocket handshake, if sent.
+    nonisolated let userAgent: String?
+
+    /// The last team this phone held. Kept after the claim is released so the
+    /// disconnect line can still name the team.
+    var claimedTeamName: String?
+
+    /// First four characters of `id`, to tell apart log lines from phones on
+    /// the same address.
+    nonisolated var shortID: String { String(id.uuidString.prefix(4)).lowercased() }
+
+    /// How log lines name this phone: its team once it has claimed one,
+    /// otherwise its address, plus `shortID`.
+    var logLabel: String {
+        if let claimedTeamName { "\(claimedTeamName) (\(remoteKey) #\(shortID))" } else { "\(remoteKey) #\(shortID)" }
+    }
+
+    nonisolated init(connection: NWConnection, userAgent: String? = nil) {
         self.connection = connection
-        if case .hostPort(let host, _) = connection.endpoint {
-            // Strip any interface scope ("fe80::1%en0") so one device maps to one key.
-            self.remoteKey = "\(host)".split(separator: "%").first.map(String.init) ?? "\(host)"
-        } else {
-            self.remoteKey = id.uuidString
-        }
+        self.userAgent = userAgent
+        self.remoteKey = Self.remoteAddress(of: connection) ?? id.uuidString
+    }
+
+    /// The connection's remote IP address, without any interface scope.
+    nonisolated static func remoteAddress(of connection: NWConnection) -> String? {
+        guard case .hostPort(let host, _) = connection.endpoint else { return nil }
+        // Strip any interface scope ("fe80::1%en0") so one device maps to one key.
+        return "\(host)".split(separator: "%").first.map(String.init) ?? "\(host)"
     }
 
     // MARK: - Sending
@@ -57,7 +76,7 @@ nonisolated final class ClientSession: Identifiable, @unchecked Sendable {
     /// Encodes `message` as JSON and sends it as a WebSocket text frame.
     nonisolated func send(_ message: ServerMessage, closeAfterSending: Bool = false) {
         guard let data = try? message.jsonData() else {
-            AppLogger.buzzer.error("[\(self.id)] Failed to encode message for sending")
+            AppLogger.buzzer.error("Couldn't encode a message for \(remoteKey) #\(shortID)", remote: remoteKey)
             return
         }
         var frame = Data()
@@ -78,7 +97,10 @@ nonisolated final class ClientSession: Identifiable, @unchecked Sendable {
         frame.append(contentsOf: data)
         connection.send(content: frame, completion: .contentProcessed { [connection] error in
             if let error {
-                AppLogger.buzzer.error("[\(self.id)] Failed to send message: \(error)")
+                AppLogger.buzzer.warning(
+                    "Send to \(self.remoteKey) #\(self.shortID) failed: \(DisconnectReason.describe(error))",
+                    remote: self.remoteKey
+                )
             }
             if closeAfterSending {
                 connection.cancel()

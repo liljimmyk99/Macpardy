@@ -179,19 +179,26 @@ actor BuzzerServer {
                 listener.stateUpdateHandler = { [weak self] state in
                     switch state {
                     case .ready:
-                        AppLogger.buzzer.info("BuzzerServer listening on port \(portNumber)")
+                        AppLogger.buzzer.info("Listener ready on port \(portNumber)")
                         if resumed.withLock({ let was = $0; $0 = true; return !was }) {
                             continuation.resume()
                         }
                     case .failed(let error):
-                        AppLogger.buzzer.error("BuzzerServer listener failed: \(error)")
+                        AppLogger.buzzer.error("Listener on port \(portNumber) failed: \(DisconnectReason.describe(error))")
                         if resumed.withLock({ let was = $0; $0 = true; return !was }) {
                             continuation.resume(throwing: error)
                         } else {
                             Task { await self?.reportListenerFailure(error) }
                         }
-                    default:
-                        break
+                    case .waiting(let error):
+                        // Not fatal: Network.framework retries when the network changes.
+                        AppLogger.buzzer.warning("Listener on port \(portNumber) is waiting for the network: \(DisconnectReason.describe(error))")
+                    case .cancelled:
+                        AppLogger.buzzer.info("Listener on port \(portNumber) cancelled")
+                    case .setup:
+                        AppLogger.buzzer.debug("Listener on port \(portNumber) setting up")
+                    @unknown default:
+                        AppLogger.buzzer.debug("Listener on port \(portNumber) changed state: \(String(describing: state))")
                     }
                 }
                 listener.start(queue: .global(qos: .utility))
@@ -217,7 +224,11 @@ actor BuzzerServer {
         heartbeatTask = nil
         tieWindowTask?.cancel()
         tieWindowTask = nil
-        for session in sessions.values {
+        let closing = Array(sessions.values)
+        let phoneCount = closing.count
+        sessions.removeAll()
+        for session in closing {
+            logDisconnect(session, reason: .serverStopped)
             if session.isAuthenticated {
                 // Closes the connection once the frame is flushed. Connections
                 // are independent of the listener, so cancelling it below
@@ -227,7 +238,6 @@ actor BuzzerServer {
                 session.close()
             }
         }
-        sessions.removeAll()
         claims = TeamClaimRegistry()
         listener?.cancel()
         listener = nil
@@ -237,7 +247,7 @@ actor BuzzerServer {
         wagerContinuation?.finish()
         answerContinuation?.finish()
         failureContinuation?.finish()
-        AppLogger.buzzer.info("BuzzerServer stopped")
+        AppLogger.buzzer.info("Buzzer server stopped (\(phoneCount) connection(s) closed)")
     }
 
     // MARK: - Broadcasting
@@ -260,6 +270,12 @@ actor BuzzerServer {
         guard normalized != currentTeams else { return }
         currentTeams = normalized
         claims.prune(validTeamIDs: Set(normalized.map(\.id)))
+        // Renamed teams: later log lines use the new name.
+        for team in normalized {
+            if let sessionID = claims.sessionID(for: team.id) {
+                sessions[sessionID]?.claimedTeamName = team.name
+            }
+        }
         claimsChanged()
     }
 
@@ -267,10 +283,9 @@ actor BuzzerServer {
     /// host". The team and its score are untouched, so a new phone can claim it.
     func removePhone(forTeam teamID: UUID) {
         guard let sessionID = claims.remove(teamID: teamID) else { return }
-        if let session = sessions.removeValue(forKey: sessionID) {
+        if let session = sessions[sessionID] {
             session.send(.removed, closeAfterSending: true)
-            publishCount()
-            AppLogger.buzzer.info("[\(sessionID)] Removed by host from team \(teamID)")
+            removeSession(session, reason: .removedByHost)
         }
         claimsChanged()
     }
@@ -399,7 +414,7 @@ actor BuzzerServer {
         case .accepted(let saved):
             session.send(.answerSaved(answer: saved))
             answerContinuation?.yield(AnswerSubmission(teamID: teamID, answer: saved))
-            AppLogger.buzzer.info("Team \(teamID) saved a Final answer")
+            AppLogger.buzzer.info("\(teamName(teamID)) saved a Final answer", team: teamName(teamID))
         case .rejected(let reason):
             session.send(.answerRejected(reason))
         }
@@ -417,7 +432,7 @@ actor BuzzerServer {
         case .accepted(let wager):
             session.send(.wagerLocked(wager: wager))
             wagerContinuation?.yield(WagerSubmission(teamID: teamID, amount: wager))
-            AppLogger.buzzer.info("Team \(teamID) submitted a Final wager")
+            AppLogger.buzzer.info("\(teamName(teamID)) submitted a Final wager", team: teamName(teamID))
         case .rejected(let reason):
             session.send(.wagerRejected(reason))
         }
@@ -446,7 +461,7 @@ actor BuzzerServer {
     private func closeTieWindow() {
         tieWindowTask = nil
         if let winner = engine.closeWindow() {
-            AppLogger.buzzer.info("Team \(winner.teamID) buzzed in first")
+            AppLogger.buzzer.info("\(teamName(winner.teamID)) buzzed in first", team: teamName(winner.teamID))
         }
         buzzerChanged()
     }
@@ -472,6 +487,11 @@ actor BuzzerServer {
         }
     }
 
+    /// A team's name for log lines.
+    private func teamName(_ teamID: UUID) -> String {
+        currentTeams.first { $0.id == teamID }?.name ?? "Unknown team"
+    }
+
     /// Tells every phone and the host UI that claims or teams changed.
     private func claimsChanged() {
         broadcast(.teams(teamsPayload()))
@@ -485,6 +505,8 @@ actor BuzzerServer {
         // (i.e. until we see \r\n\r\n) before deciding how to route the
         // connection. A single receive() is not guaranteed to deliver all
         // headers in one chunk, so we loop until the terminator is present.
+        let remote = ClientSession.remoteAddress(of: connection) ?? "unknown address"
+        AppLogger.buzzer.debug("TCP connection from \(remote)", remote: remote)
         connection.start(queue: .global(qos: .utility))
         accumulateHTTPHeaders(connection: connection, buffer: Data())
     }
@@ -493,6 +515,9 @@ actor BuzzerServer {
         connection.receive(minimumIncompleteLength: 1,
                            maximumLength: 4096) { [weak self] data, _, _, error in
             guard let self, let chunk = data, !chunk.isEmpty, error == nil else {
+                let remote = ClientSession.remoteAddress(of: connection) ?? "unknown address"
+                let why = error.map { DisconnectReason.describe($0) } ?? "closed by the phone"
+                AppLogger.buzzer.debug("Connection from \(remote) ended before a full request (\(why))", remote: remote)
                 connection.cancel()
                 return
             }
@@ -505,7 +530,8 @@ actor BuzzerServer {
             guard accumulated.range(of: terminator) != nil else {
                 if accumulated.count > 16_384 {
                     // Safety cap — real HTTP headers are never this large.
-                    AppLogger.buzzer.warning("Header block exceeded 16 KB — closing connection")
+                    let remote = ClientSession.remoteAddress(of: connection) ?? "unknown address"
+                    AppLogger.buzzer.warning("Request headers from \(remote) exceeded 16 KB; closing", remote: remote)
                     connection.cancel()
                     return
                 }
@@ -525,11 +551,15 @@ actor BuzzerServer {
             if isGET && path == "/ws" && headers.contains("upgrade: websocket") {
                 Task { await self.upgradeToWebSocket(connection: connection, requestData: accumulated) }
             } else if isGET && (path == "/" || path == "/index.html") {
+                let remote = ClientSession.remoteAddress(of: connection) ?? "unknown address"
+                let browser = UserAgentSummary.shorten(Self.headerValue("user-agent", in: accumulated))
+                AppLogger.buzzer.info("Page requested by \(remote) (\(browser))", remote: remote)
                 Task { await self.serveHTTP(connection: connection) }
             } else if isGET {
                 Task { await self.serveNotFound(connection: connection) }
             } else {
-                AppLogger.buzzer.warning("Unrecognised first bytes — closing connection")
+                let remote = ClientSession.remoteAddress(of: connection) ?? "unknown address"
+                AppLogger.buzzer.warning("Unrecognized request from \(remote); closing", remote: remote)
                 connection.cancel()
             }
         }
@@ -560,9 +590,14 @@ actor BuzzerServer {
     private func upgradeToWebSocket(connection: NWConnection, requestData: Data) {
         // Perform the WebSocket handshake manually: extract the Sec-WebSocket-Key
         // and respond with the RFC 6455 accept value.
-        guard let key = extractWebSocketKey(from: requestData),
+        let remote = ClientSession.remoteAddress(of: connection) ?? "unknown address"
+        let userAgent = Self.headerValue("user-agent", in: requestData)
+        guard let key = Self.headerValue("sec-websocket-key", in: requestData),
               let acceptValue = webSocketAccept(for: key) else {
-            AppLogger.buzzer.error("Failed to extract Sec-WebSocket-Key — closing")
+            AppLogger.buzzer.warning(
+                "WebSocket handshake from \(remote) failed: no Sec-WebSocket-Key header (\(UserAgentSummary.shorten(userAgent)))",
+                remote: remote
+            )
             connection.cancel()
             return
         }
@@ -573,11 +608,13 @@ actor BuzzerServer {
             content: Data(upgradeResponse.utf8),
             completion: .contentProcessed { [weak self] error in
                 guard let self, error == nil else {
+                    let why = error.map { DisconnectReason.describe($0) } ?? "server shutting down"
+                    AppLogger.buzzer.warning("WebSocket handshake with \(remote) failed: \(why)", remote: remote)
                     connection.cancel()
                     return
                 }
                 Task {
-                    let session = ClientSession(connection: connection)
+                    let session = ClientSession(connection: connection, userAgent: userAgent)
                     // Keep any frame bytes that arrived in the same read as the handshake.
                     if let end = requestData.range(of: Data("\r\n\r\n".utf8)) {
                         session.receiveBuffer = Data(requestData[end.upperBound...])
@@ -592,17 +629,34 @@ actor BuzzerServer {
     private func addSession(_ session: ClientSession) {
         sessions[session.id] = session
         publishCount()
-        AppLogger.buzzer.info("[\(session.id)] Client connected (total: \(self.sessions.count))")
+        AppLogger.buzzer.info(
+            "WebSocket connected: \(session.logLabel), \(UserAgentSummary.shorten(session.userAgent)) (open connections: \(sessions.count))",
+            remote: session.remoteKey
+        )
     }
 
-    /// Drops a session and frees the team it held, if any.
-    private func removeSession(_ session: ClientSession) {
+    /// Drops a session, frees the team it held, and logs why.
+    private func removeSession(_ session: ClientSession, reason: DisconnectReason) {
         guard sessions.removeValue(forKey: session.id) != nil else { return }
         publishCount()
-        if claims.release(sessionID: session.id) != nil {
+        if let teamID = claims.release(sessionID: session.id) {
+            AppLogger.buzzer.debug("\(teamName(teamID)) released by \(session.remoteKey) #\(session.shortID)", team: teamName(teamID), remote: session.remoteKey)
             claimsChanged()
         }
-        AppLogger.buzzer.info("[\(session.id)] Client removed (total: \(self.sessions.count))")
+        logDisconnect(session, reason: reason)
+    }
+
+    /// One line per disconnect: who, for how long, and why.
+    private func logDisconnect(_ session: ClientSession, reason: DisconnectReason) {
+        let duration = LogDuration.format(Date().timeIntervalSince(session.connectedAt))
+        let joined = sessions.values.filter(\.isAuthenticated).count
+        let state = session.isAuthenticated ? "connected" : "connected, not joined,"
+        AppLogger.buzzer.log(
+            reason.logLevel,
+            "Disconnected \(session.logLabel) (\(state) \(duration)): \(reason.description). Phones still joined: \(joined)",
+            team: session.claimedTeamName,
+            remote: session.remoteKey
+        )
     }
 
     /// Reads WebSocket frames in a loop until the connection closes.
@@ -611,12 +665,12 @@ actor BuzzerServer {
         processBuffer(of: session)
 
         while true {
-            let (data, done) = await withCheckedContinuation { continuation in
+            let (data, isComplete, error) = await withCheckedContinuation { continuation in
                 session.connection.receive(
                     minimumIncompleteLength: 1,
                     maximumLength: 65536
                 ) { data, _, isComplete, error in
-                    continuation.resume(returning: (data, isComplete || error != nil))
+                    continuation.resume(returning: (data, isComplete, error))
                 }
             }
 
@@ -625,10 +679,16 @@ actor BuzzerServer {
                 processBuffer(of: session)
             }
 
-            if done || sessions[session.id] == nil {
-                if sessions[session.id] != nil {
-                    removeSession(session)
-                }
+            // Already removed (close frame, timeout, host, stop): that path logged why.
+            guard sessions[session.id] != nil else { return }
+            if let error {
+                removeSession(session, reason: .networkError(DisconnectReason.describe(error)))
+                session.close()
+                return
+            }
+            if isComplete {
+                removeSession(session, reason: .connectionEnded)
+                session.close()
                 return
             }
         }
@@ -641,8 +701,7 @@ actor BuzzerServer {
             case .incomplete:
                 return
             case .invalid:
-                AppLogger.buzzer.warning("[\(session.id)] Invalid frame — closing")
-                removeSession(session)
+                removeSession(session, reason: .invalidFrame)
                 session.close()
                 return
             case .frame(let frame, let consumed):
@@ -660,7 +719,7 @@ actor BuzzerServer {
             fragments.append(frame.payload)
             if fragments.count > WebSocketFrameParser.maxPayload {
                 session.fragmentBuffer = nil
-                removeSession(session)
+                removeSession(session, reason: .oversizedMessage)
                 session.close()
             } else if frame.fin {
                 session.fragmentBuffer = nil
@@ -677,9 +736,7 @@ actor BuzzerServer {
             }
 
         case 0x8: // Connection close
-            if sessions[session.id] != nil {
-                removeSession(session)
-            }
+            removeSession(session, reason: .phoneClosed(code: DisconnectReason.closeCode(fromPayload: frame.payload)))
             session.close()
 
         case 0x9: // Ping — respond with pong (opcode 0xA)
@@ -695,7 +752,7 @@ actor BuzzerServer {
 
     private func handleTextPayload(_ payload: Data, from session: ClientSession) {
         guard let msg = try? JSONDecoder().decode(ClientMessage.self, from: payload) else {
-            AppLogger.buzzer.warning("[\(session.id)] Undecodable message — ignoring")
+            AppLogger.buzzer.warning("Ignored an undecodable message from \(session.logLabel)", team: session.claimedTeamName, remote: session.remoteKey)
             return
         }
         handleClientMessage(msg, from: session)
@@ -703,13 +760,17 @@ actor BuzzerServer {
 
     private func handleClientMessage(_ message: ClientMessage, from session: ClientSession) {
         switch message {
-        case .join(let code, let version):
+        case .join(let code, let version, let diag):
             guard version == BuzzerConstants.protocolVersion else {
                 session.send(
                     .joinRejected(.unsupportedVersion),
                     closeAfterSending: true
                 )
-                removeSession(session)
+                AppLogger.buzzer.warning(
+                    "Join from \(session.logLabel) rejected: page speaks protocol v\(version), this Mac v\(BuzzerConstants.protocolVersion) (an old page left open; reload it)",
+                    remote: session.remoteKey
+                )
+                removeSession(session, reason: .joinRejected(.unsupportedVersion))
                 return
             }
 
@@ -720,8 +781,8 @@ actor BuzzerServer {
                     .joinRejected(.rateLimited),
                     closeAfterSending: true
                 )
-                AppLogger.buzzer.warning("[\(session.id)] Rejected — code attempts rate limited")
-                removeSession(session)
+                AppLogger.buzzer.warning("Join from \(session.logLabel) rejected: too many wrong Game PINs from this address", remote: session.remoteKey)
+                removeSession(session, reason: .joinRejected(.rateLimited))
                 return
             }
 
@@ -730,15 +791,21 @@ actor BuzzerServer {
                 session.lastPong = Date()
                 session.send(.joinAccepted(teams: teamsPayload()))
                 publishCount()
-                AppLogger.buzzer.info("[\(session.id)] Authenticated with code \(code)")
+                AppLogger.buzzer.info("Join accepted from \(session.logLabel)", remote: session.remoteKey)
+                if let diag {
+                    AppLogger.buzzer.notice("Phone report (\(session.remoteKey) #\(session.shortID)): \(diag.summary)", remote: session.remoteKey)
+                }
             } else {
                 let limited = codeLimiter.record(session.remoteKey)
                 session.send(
                     .joinRejected(limited ? .rateLimited : .invalidCode),
                     closeAfterSending: true
                 )
-                AppLogger.buzzer.warning("[\(session.id)] Rejected — wrong code '\(code)'")
-                removeSession(session)
+                AppLogger.buzzer.warning(
+                    "Join from \(session.logLabel) rejected: wrong Game PIN '\(code.prefix(16))'\(limited ? " (now rate limited)" : "")",
+                    remote: session.remoteKey
+                )
+                removeSession(session, reason: .joinRejected(limited ? .rateLimited : .invalidCode))
             }
 
         case .claim(let teamID):
@@ -746,9 +813,11 @@ actor BuzzerServer {
 
             if claimLimiter.record(session.remoteKey) {
                 session.send(.claimRejected(reason: .rateLimited))
+                AppLogger.buzzer.warning("Claim of \(teamName(teamID)) by \(session.logLabel) rejected: rate limited", team: teamName(teamID), remote: session.remoteKey)
                 return
             }
 
+            let previousTeamID = claims.teamID(for: session.id)
             switch claims.claim(
                 teamID: teamID,
                 sessionID: session.id,
@@ -761,7 +830,11 @@ actor BuzzerServer {
                 sendAnswerInfo(toTeam: teamID)
                 sendResponseTimer(to: session)
                 claimsChanged()
-                AppLogger.buzzer.info("[\(session.id)] Claimed team \(teamID)")
+                if let previousTeamID, previousTeamID != teamID {
+                    AppLogger.buzzer.info("\(teamName(previousTeamID)) released by \(session.logLabel)", team: teamName(previousTeamID), remote: session.remoteKey)
+                }
+                session.claimedTeamName = teamName(teamID)
+                AppLogger.buzzer.info("Claim accepted: \(session.logLabel)", team: teamName(teamID), remote: session.remoteKey)
             case .alreadyHeld:
                 session.send(.claimAccepted(teamID: teamID))
                 sendBuzzerState(toTeam: teamID)
@@ -772,9 +845,11 @@ actor BuzzerServer {
             case .taken:
                 session.send(.teams(teamsPayload()))
                 session.send(.claimRejected(reason: .taken))
+                AppLogger.buzzer.info("Claim of \(teamName(teamID)) by \(session.logLabel) rejected: another phone holds it", team: teamName(teamID), remote: session.remoteKey)
             case .invalidTeam:
                 session.send(.teams(teamsPayload()))
                 session.send(.claimRejected(reason: .invalidTeam))
+                AppLogger.buzzer.info("Claim by \(session.logLabel) rejected: no such team", remote: session.remoteKey)
             }
 
         case .pong:
@@ -810,27 +885,28 @@ actor BuzzerServer {
     private func heartbeatTick() {
         let ttl = BuzzerConstants.heartbeatTTL
         let now = Date()
-        var toRemove: [ClientSession] = []
+        var toRemove: [(ClientSession, DisconnectReason)] = []
 
-        for (id, session) in sessions {
+        for session in sessions.values {
             if !session.isAuthenticated {
                 // Never joined: give it one TTL to send a valid `join`, don't ping it.
-                if now.timeIntervalSince(session.connectedAt) > ttl {
-                    AppLogger.buzzer.info("[\(id)] No join within TTL — disconnecting")
+                let waited = now.timeIntervalSince(session.connectedAt)
+                if waited > ttl {
                     session.close()
-                    toRemove.append(session)
+                    toRemove.append((session, .neverJoined(after: waited)))
                 }
             } else if now.timeIntervalSince(session.lastPong) > ttl {
-                AppLogger.buzzer.info("[\(id)] Heartbeat TTL exceeded — disconnecting")
                 session.close()
-                toRemove.append(session)
+                toRemove.append((session, .heartbeatTimeout(sinceLastPong: now.timeIntervalSince(session.lastPong))))
             } else {
                 session.send(.ping)
             }
         }
 
         // Removing a session also frees the team it held.
-        toRemove.forEach(removeSession)
+        for (session, reason) in toRemove {
+            removeSession(session, reason: reason)
+        }
 
         codeLimiter.prune(now: now)
         claimLimiter.prune(now: now)
@@ -866,12 +942,16 @@ actor BuzzerServer {
 
     // MARK: - WebSocket Handshake Helpers
 
-    private func extractWebSocketKey(from data: Data) -> String? {
+    /// The value of the first header called `name` (lowercase) in an HTTP
+    /// request head, trimmed; nil when absent or empty.
+    nonisolated static func headerValue(_ name: String, in data: Data) -> String? {
         guard let text = String(bytes: data, encoding: .utf8) else { return nil }
+        let prefix = name.lowercased() + ":"
         for line in text.components(separatedBy: "\r\n") {
-            if line.lowercased().hasPrefix("sec-websocket-key:") {
-                return line.dropFirst("sec-websocket-key:".count)
-                    .trimmingCharacters(in: .whitespaces)
+            if line.isEmpty { break }   // end of the header block
+            if line.lowercased().hasPrefix(prefix) {
+                let value = line.dropFirst(prefix.count).trimmingCharacters(in: .whitespaces)
+                return value.isEmpty ? nil : value
             }
         }
         return nil

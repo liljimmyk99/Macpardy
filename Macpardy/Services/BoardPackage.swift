@@ -126,15 +126,15 @@ nonisolated enum BoardPackage {
         var game = try decodeGameJSON(boardData)
         resolveImages(in: &game.boards) { path in
             guard isSafeImagePath(path) else {
-                AppLogger.database.warning("Ignoring unsafe image path \(path, privacy: .public)")
+                AppLogger.database.warning("Ignoring unsafe image path \(path)")
                 return nil
             }
             guard let entry = archive[path] else {
-                AppLogger.database.warning("Board image missing: \(path, privacy: .public)")
+                AppLogger.database.warning("Board image missing: \(path)")
                 return nil
             }
             guard entry.uncompressedSize <= UInt64(maxImageEntryBytes) else {
-                AppLogger.database.warning("Board image too large: \(path, privacy: .public)")
+                AppLogger.database.warning("Board image too large: \(path)")
                 return nil
             }
             return extract(entry, from: archive, limit: maxImageEntryBytes)
@@ -153,7 +153,7 @@ nonisolated enum BoardPackage {
             }
             return output
         } catch {
-            AppLogger.database.error("Failed to extract \(entry.path, privacy: .public): \(error.localizedDescription)")
+            AppLogger.database.error("Failed to extract \(entry.path): \(error.localizedDescription)")
             return nil
         }
     }

@@ -41,7 +41,7 @@ enum BundledGameLibrary {
                     let draft = try BoardLoader.load(data: Data(contentsOf: url), fileName: url.lastPathComponent)
                     return BundledGame(id: url.lastPathComponent, title: draft.trimmedTitle)
                 } catch {
-                    AppLogger.database.error("Skipping built-in game \(url.lastPathComponent, privacy: .public): \(String(describing: error), privacy: .public)")
+                    AppLogger.database.error("Skipping built-in game \(url.lastPathComponent): \(String(describing: error))")
                     return nil
                 }
             }

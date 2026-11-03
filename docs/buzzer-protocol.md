@@ -1,4 +1,4 @@
-# Macpardy! Buzzer WebSocket Protocol — v7
+# Macpardy! Buzzer WebSocket Protocol — v8
 
 All WebSocket messages are JSON objects with a required top-level `type` string field
 and an optional `payload` object. Unknown `type` values should be silently ignored by
@@ -30,15 +30,41 @@ and closes the connection.
 ```json
 {
   "type": "join",
-  "version": 7,
-  "code": "AB3XYZ"
+  "version": 8,
+  "code": "AB3XYZ",
+  "diag": { "cause": "watchdog", "connectedMs": 720000, "hiddenMs": 38000, "hiddenAtLoss": false, "secondsSince": 41 }
 }
 ```
 
 | Field     | Type   | Description                                              |
 |-----------|--------|----------------------------------------------------------|
-| `version` | int    | Required. Protocol version the client speaks. Currently always `7`. A missing version is not decodable and the message is ignored. |
+| `version` | int    | Required. Protocol version the client speaks. Currently always `8`. A missing version is not decodable and the message is ignored. |
 | `code`    | string | The 6-character join code ("Game PIN") shown on the host's screen. |
+| `diag`    | object | Optional (v8). How this phone's previous connection ended; see below. |
+
+#### `diag`: the phone's disconnect report
+
+The Mac only sees a phone stop answering pings; it can't tell a locked screen from a Wi-Fi
+drop. So when a joined connection ends, the page saves what it saw to `localStorage`
+(`macpardy.lastDisconnect`) and sends it as `diag` on its next `join`. It clears the saved
+report once a join is accepted, so a wrong PIN doesn't lose it. The page never reconnects on
+its own, so the report arrives when the player re-enters the PIN (or reloads with `?code=`).
+
+Every field is optional. The server reads each one on its own: numbers are clamped to the
+ranges below, strings are cut to 64 characters, an unknown `cause` is dropped, and a `diag`
+that isn't an object (or is empty) is ignored. A bad `diag` never fails the `join`. The
+server logs the report in plain words after the join is accepted (see
+[Troubleshooting](#troubleshooting-disconnects)); it doesn't change how the join is handled.
+
+| Field          | Type   | Description |
+|----------------|--------|-------------|
+| `cause`        | string | `watchdog` (nothing from the Mac for 5 s), `socketClose`, `socketError`, `removed`, or `sessionEnded`. |
+| `closeCode`    | int    | The WebSocket close code the page saw (`socketClose`). 0–4999. |
+| `closeReason`  | string | The close reason the page saw, if any. At most 64 characters. |
+| `connectedMs`  | int    | How long the connection had been joined. 0 to 7 days. |
+| `hiddenMs`     | int    | How long the page was hidden (screen locked, app or tab switched) during that connection. 0 to 7 days. |
+| `hiddenAtLoss` | bool   | Whether the page was hidden at the moment the connection was lost. |
+| `secondsSince` | int    | Seconds between the loss and this `join`. 0 to 30 days. |
 
 ---
 
@@ -121,7 +147,7 @@ Sent to the joining phone after a valid join code is received.
 {
   "type": "joinAccepted",
   "payload": {
-    "version": 7,
+    "version": 8,
     "teams": [
       { "id": "6F9619FF-8B86-D011-B42D-00C04FC964FF", "name": "Team 1", "color": "blue", "claimed": false }
     ]
@@ -131,7 +157,7 @@ Sent to the joining phone after a valid join code is received.
 
 | Payload field | Type     | Description                                                     |
 |---------------|----------|-----------------------------------------------------------------|
-| `version`     | int      | Protocol version the server is speaking. Currently always `7`.  |
+| `version`     | int      | Protocol version the server is speaking. Currently always `8`.  |
 | `teams`       | object[] | Teams in display order (at most 4). `claimed` is true while a phone holds the team; the phone disables that team's Join button. `color` is one of `blue`, `red`, `green`, `yellow`, `purple`, `orange`. |
 
 ---
@@ -356,6 +382,9 @@ mid-game network drop, and the app being quit or the Mac going to sleep.
 
 `removed` is unchanged: the phone shows "Removed by host" and stays there.
 
+Each of these (and `removed` / `sessionEnded`) saves a disconnect report that the next `join`
+carries as `diag`.
+
 ---
 
 ## Team claims and presence
@@ -535,6 +564,38 @@ Final answering is over (the host left the Final); the phone returns to the buzz
 | 5       | Issue #59. Adds `responseTimer` and `responseTimerStopped`. |
 | 6       | Issue #61. Adds `sessionEnded` and `joinRejected.code`. The page asks for a Game PIN when opened without `?code=` and no longer reconnects on its own. |
 | 7       | Issue #80. Adds `submitAnswer`, `answerInfo`, `answerSaved`, `answerRejected` and `answerClosed`. A page left open from an older version is told to reload, since it couldn't answer. |
+| 8       | Issue #81. `join` may carry `diag`, the phone's report on how its previous connection ended. |
+
+## Troubleshooting disconnects
+
+Open **Help > Show Logs** (⌥⌘L) or **View Logs** in the Buzzers popover; the window opens on
+the Buzzer category. Every disconnect is one line naming the team (or the phone's IP before
+it picks one), a 4-character connection id, how long it was connected, and the reason:
+
+| Reason in the log | Likely cause |
+|---|---|
+| `no pong for 6.1s (heartbeat timeout…)` | The phone stopped running the page: screen locked, browser in the background, or the phone left Wi-Fi. The phone's report on rejoin tells these apart. |
+| `phone closed the connection (1001 going away…)` | The player closed the tab, reloaded, or navigated away. |
+| `phone closed the connection (no status code)` | The page closed the socket itself, usually its watchdog after 5 s without hearing from the Mac. |
+| `the connection ended without a WebSocket close` / `network error: …` | The network dropped the connection (Wi-Fi off, out of range, router). |
+| `never sent a join within 5.0s` | A socket opened but the page never joined (very slow network, or not the buzzer page). |
+| `removed by the host` | The host removed the phone in the Buzzers popover. |
+| `the buzzer server stopped` | Complete Game, resuming a save, or leaving the game. |
+| `join rejected (…)` | Wrong PIN, too many attempts, or an old page (`unsupportedVersion`: reload it). |
+
+Two more lines help:
+
+- **Phone report** (`notice`), logged when a phone rejoins, e.g. `Phone report (192.168.1.23
+  #a1b2): previous connection lost 41s ago after 12m — the phone heard nothing from the Mac
+  for 5s (watchdog); page was hidden for 38s (screen locked or app switched)`. "Page was
+  hidden" means the screen was locked or the player switched apps; "page stayed visible" with
+  a watchdog or socket error points at the network.
+- **Mac network changed** (Network category), e.g. `Mac network changed: Wi-Fi (en0) →
+  unavailable`. When every phone drops at once, look for this line first.
+
+Phones that never reach the Mac (wrong network, "Unable to find client" right after tapping
+Join) leave no line, since the Mac never hears from them. Their report arrives once they
+connect successfully later.
 
 ## Port
 

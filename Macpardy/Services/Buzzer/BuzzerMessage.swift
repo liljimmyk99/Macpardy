@@ -248,8 +248,9 @@ extension ServerMessage: Encodable {
 /// Messages sent by a phone client to the server.
 nonisolated enum ClientMessage {
     /// First message a phone sends after the WebSocket connection opens.
-    /// `version` must match `BuzzerConstants.protocolVersion`.
-    case join(code: String, version: Int)
+    /// `version` must match `BuzzerConstants.protocolVersion`. `diag` is the
+    /// phone's optional report on how its previous connection ended (v8).
+    case join(code: String, version: Int, diag: PhoneDisconnectReport?)
 
     /// Asks to take a team. Only valid after a successful `join`.
     case claim(teamID: UUID)
@@ -269,7 +270,7 @@ nonisolated enum ClientMessage {
 
 extension ClientMessage: Decodable {
     private enum CodingKeys: String, CodingKey {
-        case type, code, version, teamID, amount, answer
+        case type, code, version, teamID, amount, answer, diag
     }
 
     init(from decoder: Decoder) throws {
@@ -279,7 +280,10 @@ extension ClientMessage: Decodable {
         case "join":
             let code = try container.decode(String.self, forKey: .code)
             let version = try container.decode(Int.self, forKey: .version)
-            self = .join(code: code, version: version)
+            // Optional and best-effort: a malformed report never fails the join.
+            let diag = (try? container.decodeIfPresent(PhoneDisconnectReport.self, forKey: .diag))
+                .flatMap { $0.isEmpty ? nil : $0 }
+            self = .join(code: code, version: version, diag: diag)
         case "claim":
             self = .claim(teamID: try container.decode(UUID.self, forKey: .teamID))
         case "pong":

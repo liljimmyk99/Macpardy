@@ -6,7 +6,6 @@
 //
 
 import AppKit
-import OSLog
 import SwiftUI
 
 /// Holds a quit while an edited board has unsaved changes, so the editor
@@ -46,6 +45,20 @@ final class MacpardyAppDelegate: NSObject, NSApplicationDelegate {
         sender.activate()
         return .terminateLater
     }
+
+    /// Writes the last log lines before the app exits (waits at most half a second).
+    func applicationWillTerminate(_ notification: Notification) {
+        AppLogger.control.info("Macpardy quitting")
+        let done = DispatchSemaphore(value: 0)
+        let store = LogCenter.shared.store
+        Task.detached {
+            // Give the line above a moment to reach the store, then write it out.
+            try? await Task.sleep(for: .milliseconds(50))
+            await store.flush()
+            done.signal()
+        }
+        _ = done.wait(timeout: .now() + 0.5)
+    }
 }
 
 @main
@@ -68,6 +81,11 @@ struct MacpardyApp: App {
 
     @State
     private var boardOpenCoordinator = BoardOpenCoordinator()
+
+    init() {
+        LogCenter.shared.start()
+        AppLogger.control.info("\(SystemInfoReport.appDescription) launched on \(SystemInfoReport.osDescription)")
+    }
 
     private var buzzerTeams: [BuzzerTeam] {
         gameState.game.teams.map(BuzzerTeam.init(team:))
@@ -251,6 +269,16 @@ struct MacpardyApp: App {
                 .windowFullScreenBehavior(.disabled)
         }
         .windowResizability(.contentSize)
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
+
+        Window("logs.window.title", id: "logs") {
+            LogsView()
+                .environment(LogCenter.shared)
+                .environment(gameState)
+                .environment(buzzerState)
+        }
+        .defaultSize(width: 1000, height: 640)
         .defaultLaunchBehavior(.suppressed)
         .restorationBehavior(.disabled)
 

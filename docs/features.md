@@ -174,6 +174,10 @@ A game works without phones. When the game starts, the app serves a page on the 
   every phone returns to an empty Game PIN screen ("Game over…"). An old PIN is refused with
   "That game has ended or the PIN changed".
 - Abuse limits: wrong Game PINs and claim attempts are rate limited per address.
+- **Why did a phone drop?** **View Logs** in the Buzzers popover opens the Logs window (§6d)
+  on the Buzzer category. Each disconnect is one line with the team, the phone's IP, how long
+  it was connected and why; when the phone rejoins, its own report says whether its screen was
+  locked or the page hidden.
 
 Wire details: [buzzer-protocol.md](buzzer-protocol.md).
 
@@ -241,6 +245,29 @@ is on:
   affects the Display).
 - **Scores:** the number rolls to its new value and flashes gold when it rises, red when it falls.
 
+## 6d. Logs
+
+The app keeps its own log so a host can see why phones won't connect or drop off.
+
+- **Help > Show Logs** (⌥⌘L), or **View Logs** in the Buzzers popover, opens the **Logs**
+  window. It opens on the **Buzzer** category, showing Info and above, and updates live.
+- Toolbar: pick the **run** (this session, live, or an earlier launch by date), the
+  **category** (All, Buzzer, Network, Control, Display, Storage), the **minimum level**, a
+  **team**, and search messages, teams and addresses. Text can be selected and copied.
+- The list follows new lines while it's scrolled to the bottom; scrolling up pauses it and
+  shows **Jump to Latest**.
+- Each launch writes its own log file, so a previous session can be read after a relaunch.
+  The app keeps the 10 most recent launches and at most 20 MB, deleting the oldest at launch
+  (one launch's file stops growing at 5 MB).
+- **Export Logs…** saves one `.zip`: every kept launch as a readable `.log` file (and the raw
+  `.jsonl`), plus `system-info.txt` (app and macOS version, Mac model, buzzer port and
+  protocol, whether the server is running, local IP addresses, team count). The save panel
+  notes that it contains team names, local IP addresses and phone browser info. Nothing is
+  uploaded; the host sends the file if they want to.
+- The same lines go to Console.app (subsystem `jbkiv.Macpardy`), unredacted.
+
+What the buzzer lines mean: [buzzer-protocol.md](buzzer-protocol.md#troubleshooting-disconnects).
+
 ## 7. Keyboard shortcuts
 
 **Help > Keyboard Shortcuts** (⌘/), or the keyboard button in the Control toolbar, opens a window
@@ -263,6 +290,7 @@ while the editor is up. Every shortcut is defined once in
 | Editor window | Tab / ⇧Tab | Move between the clue and response fields (and the Final category) |
 | Any window | ⌘, | Open **Settings** |
 | Any window | ⌘/ | Open **Keyboard Shortcuts** |
+| Any window | ⌥⌘L | Open **Logs** |
 | Control, any phase in a game | ⌘⇧B | Open the **Buzzers** popover |
 | Control, any phase in a game | ⌘D | **Show Display** |
 | Control, Board | ⌘F | **Final Macpardy** |

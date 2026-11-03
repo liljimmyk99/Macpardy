@@ -3,7 +3,7 @@
 //  Macpardy
 //
 //  The Help menu. Replaces the empty "Macpardy Help" item with the
-//  Keyboard Shortcuts window.
+//  Keyboard Shortcuts and Logs windows.
 //
 
 import SwiftUI
@@ -18,6 +18,11 @@ struct HelpCommands: Commands {
                 openWindow(id: "shortcuts")
             }
             .keyboardShortcut(.keyboardShortcuts)
+
+            Button("menu.help.show_logs") {
+                openWindow(id: "logs")
+            }
+            .keyboardShortcut(.showLogs)
         }
     }
 }

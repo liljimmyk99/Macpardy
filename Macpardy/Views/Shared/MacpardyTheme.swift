@@ -20,6 +20,13 @@ enum MacpardyTheme {
     static let clueBackground = MacpardyAsset.clueBackground.swiftUIColor
     static let controlBackground = Color(nsColor: .windowBackgroundColor)
 
+    // Logs window: one color per level
+    static let logDebug = MacpardyAsset.logDebug.swiftUIColor
+    static let logInfo = MacpardyAsset.logInfo.swiftUIColor
+    static let logNotice = MacpardyAsset.logNotice.swiftUIColor
+    static let logWarning = MacpardyAsset.logWarning.swiftUIColor
+    static let logError = MacpardyAsset.logError.swiftUIColor
+
     // SF Pro is the system font, so there are no font files to bundle; sizes live here.
     static let categoryFont = Font.system(size: 22, weight: .bold, design: .default)
     static let valueFont = Font.system(size: 36, weight: .bold, design: .default)
@@ -47,4 +54,8 @@ enum MacpardyTheme {
     static let launchTitleFont = Font.system(size: 88, weight: .black, design: .default)
     static let launchTileIconFont = Font.system(size: 40, weight: .semibold, design: .default)
     static let shortcutFont = Font.system(size: 12, weight: .semibold, design: .monospaced)
+
+    // Logs window
+    static let logFont = Font.system(size: 12, weight: .regular, design: .monospaced)
+    static let logMetaFont = Font.system(size: 11, weight: .medium, design: .monospaced)
 }

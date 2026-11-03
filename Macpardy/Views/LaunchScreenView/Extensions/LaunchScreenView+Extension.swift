@@ -116,7 +116,7 @@ extension LaunchScreenView {
             gameState.loadGame(boards: try BundledGameLibrary.boards(for: game))
             hasSelectedGame = true
         } catch {
-            AppLogger.database.error("Can't play built-in \(game.id, privacy: .public): \(String(describing: error), privacy: .public)")
+            AppLogger.database.error("Can't play built-in \(game.id): \(String(describing: error))")
             loadErrorReport = BoardLoadReport(fileName: game.id, error: error)
         }
     }
@@ -129,7 +129,7 @@ extension LaunchScreenView {
             editorSession.edit(draft, suggestedFilename: BundledGameLibrary.copyFilename(for: draft.trimmedTitle))
             openWindow(id: "create-macpardy")
         } catch {
-            AppLogger.database.error("Can't edit built-in \(game.id, privacy: .public): \(String(describing: error), privacy: .public)")
+            AppLogger.database.error("Can't edit built-in \(game.id): \(String(describing: error))")
             loadErrorReport = BoardLoadReport(fileName: game.id, error: error)
         }
     }
@@ -154,12 +154,12 @@ extension LaunchScreenView {
             do {
                 let data = try FileManagerService().readData(from: url)
                 let draft = try BoardLoader.load(data: data, fileName: url.lastPathComponent)
-                AppLogger.database.info("Opened \(url.lastPathComponent, privacy: .public) for editing")
+                AppLogger.database.info("Opened \(url.lastPathComponent) for editing")
                 recents.note(url)
                 editorSession.edit(draft)
                 openWindow(id: "create-macpardy")
             } catch {
-                AppLogger.database.error("Can't edit \(url.lastPathComponent, privacy: .public): \(String(describing: error), privacy: .public)")
+                AppLogger.database.error("Can't edit \(url.lastPathComponent): \(String(describing: error))")
                 loadErrorReport = BoardLoadReport(fileName: url.lastPathComponent, error: error)
             }
         case .failure(let error):

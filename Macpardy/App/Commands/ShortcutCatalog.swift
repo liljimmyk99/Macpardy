@@ -33,7 +33,7 @@ nonisolated enum AppShortcut: String, CaseIterable, Identifiable {
     // Never bound with `.keyboardShortcut`; they only appear in the catalog.
     case settings, undo, redo, fullScreen, closeWindow, minimize
     // Help
-    case keyboardShortcuts
+    case keyboardShortcuts, showLogs
 
     var id: String { rawValue }
 
@@ -60,6 +60,7 @@ nonisolated enum AppShortcut: String, CaseIterable, Identifiable {
         case .closeWindow: "menu.window.close"
         case .minimize: "menu.window.minimize"
         case .keyboardShortcuts: "menu.help.keyboard_shortcuts"
+        case .showLogs: "menu.help.show_logs"
         }
     }
 
@@ -83,6 +84,7 @@ nonisolated enum AppShortcut: String, CaseIterable, Identifiable {
         case .closeWindow: "w"
         case .minimize: "m"
         case .keyboardShortcuts: "/"
+        case .showLogs: "l"
         }
     }
 
@@ -90,6 +92,7 @@ nonisolated enum AppShortcut: String, CaseIterable, Identifiable {
         switch self {
         case .buzzers, .redo: [.command, .shift]
         case .fullScreen: [.command, .control]
+        case .showLogs: [.command, .option]
         default: .command
         }
     }
@@ -104,7 +107,7 @@ nonisolated enum AppShortcut: String, CaseIterable, Identifiable {
         case .undo, .redo: .edit
         case .fullScreen: .view
         case .closeWindow, .minimize: .window
-        case .keyboardShortcuts: .help
+        case .keyboardShortcuts, .showLogs: .help
         }
     }
 

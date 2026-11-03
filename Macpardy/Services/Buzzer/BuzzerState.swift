@@ -8,7 +8,6 @@
 
 import Foundation
 import Network
-import OSLog
 
 @Observable
 final class BuzzerState {
@@ -73,6 +72,8 @@ final class BuzzerState {
     private var countObserverTask: Task<Void, Never>?
     private var claimedObserverTask: Task<Void, Never>?
     private var failureObserverTask: Task<Void, Never>?
+    private var pathMonitor: NWPathMonitor?
+    private var lastPathDescription: String?
 
     // MARK: - Teams
 
@@ -160,17 +161,20 @@ final class BuzzerState {
         startError = nil
 
         // Resolve local IP before starting so the URL is ready immediately.
-        guard let ip = localIPAddress() else {
+        let addresses = LocalNetworkInterfaces.current()
+        guard let address = LocalNetworkInterfaces.preferred(from: addresses) else {
             startError = "No local network address found. Connect to Wi-Fi or Ethernet."
-            AppLogger.buzzer.error("Buzzer server not started — no local IPv4 address")
+            let candidates = addresses.isEmpty ? "none" : addresses.map(\.description).joined(separator: ", ")
+            AppLogger.network.error("Buzzer server not started: no usable local IPv4 address. Interfaces: \(candidates)")
             return
         }
+        let ip = address.ip
 
         let code = JoinCodeGenerator.generate()
         let port = AppSettings.buzzerPort()
         guard let urls = Self.joinURLs(ip: ip, port: port, code: code) else {
             startError = "No local network address found. Connect to Wi-Fi or Ethernet."
-            AppLogger.buzzer.error("Buzzer server not started — couldn't build a URL for \(ip)")
+            AppLogger.buzzer.error("Buzzer server not started: couldn't build a URL for \(ip)")
             return
         }
         let newServer = BuzzerServer(joinCode: code, port: port)
@@ -182,7 +186,12 @@ final class BuzzerState {
             self.serverURL = urls.join
             self.baseURL = urls.base
             self.isRunning = true
-            AppLogger.buzzer.info("Buzzer server started at \(urls.join.absoluteString)")
+            let others = addresses.filter { $0 != address }.map(\.description)
+            AppLogger.buzzer.info(
+                "Buzzer server started at \(urls.base.absoluteString) on \(address.interface)"
+                    + (others.isEmpty ? "" : " (other interfaces: \(others.joined(separator: ", ")))")
+            )
+            startPathMonitor()
 
             await newServer.updateTeams(latestTeams)
             await newServer.updateScores(latestScores)
@@ -242,12 +251,13 @@ final class BuzzerState {
             }
         } catch {
             startError = String(localized: "control.buzzer.error.start_failed \(Int(port)) \(error.localizedDescription)")
-            AppLogger.buzzer.error("Failed to start buzzer server: \(error)")
+            AppLogger.buzzer.error("Failed to start the buzzer server on port \(port): \(error)")
         }
     }
 
     /// Stops the server and clears all state.
     func stopServer() async {
+        stopPathMonitor()
         countObserverTask?.cancel()
         countObserverTask = nil
         claimedObserverTask?.cancel()
@@ -286,46 +296,35 @@ final class BuzzerState {
         return (base, join)
     }
 
-    // MARK: - Local IP Resolution
+    // MARK: - Mac network changes
 
-    /// Returns the IPv4 address phones on the local network can most likely reach.
-    /// Prefers `en*` interfaces (Wi-Fi / Ethernet) and ignores VPN, bridge and
-    /// AirDrop interfaces; falls back to any other non-loopback IPv4 address.
-    private func localIPAddress() -> String? {
-        var ifaddr: UnsafeMutablePointer<ifaddrs>?
-        guard getifaddrs(&ifaddr) == 0 else { return nil }
-        defer { freeifaddrs(ifaddr) }
-
-        var preferred: String?
-        var fallback: String?
-        let ignoredPrefixes = ["utun", "bridge", "awdl", "llw", "ap", "gif", "stf"]
-
-        var ptr = ifaddr
-        while let interface = ptr {
-            defer { ptr = interface.pointee.ifa_next }
-
-            guard let addr = interface.pointee.ifa_addr else { continue }
-            let flags = Int32(interface.pointee.ifa_flags)
-            guard (flags & IFF_UP) != 0, (flags & IFF_LOOPBACK) == 0,
-                  addr.pointee.sa_family == UInt8(AF_INET) else { continue }
-
-            var hostname = [CChar](repeating: 0, count: Int(NI_MAXHOST))
-            guard getnameinfo(
-                addr, socklen_t(addr.pointee.sa_len),
-                &hostname, socklen_t(hostname.count),
-                nil, 0, NI_NUMERICHOST
-            ) == 0 else { continue }
-
-            let name = String(cString: interface.pointee.ifa_name)
-            let ip = String(cString: hostname)
-
-            if name.hasPrefix("en") {
-                preferred = preferred ?? ip
-            } else if !ignoredPrefixes.contains(where: { name.hasPrefix($0) }) {
-                fallback = fallback ?? ip
-            }
+    /// Logs changes to the Mac's own network while the server runs. A Mac
+    /// Wi-Fi blip drops every phone at once; this line makes that obvious.
+    private func startPathMonitor() {
+        stopPathMonitor()
+        let monitor = NWPathMonitor()
+        monitor.pathUpdateHandler = { [weak self] path in
+            let description = NetworkPathSummary.describe(path)
+            Task { @MainActor in self?.pathChanged(to: description) }
         }
-        return preferred ?? fallback
+        monitor.start(queue: .global(qos: .utility))
+        pathMonitor = monitor
+    }
+
+    private func stopPathMonitor() {
+        pathMonitor?.cancel()
+        pathMonitor = nil
+        lastPathDescription = nil
+    }
+
+    private func pathChanged(to description: String) {
+        guard pathMonitor != nil, description != lastPathDescription else { return }
+        if let previous = lastPathDescription {
+            AppLogger.network.warning("Mac network changed: \(previous) → \(description)")
+        } else {
+            AppLogger.network.info("Mac network: \(description)")
+        }
+        lastPathDescription = description
     }
 }
 
@@ -336,5 +335,3 @@ extension BuzzerTeam {
     }
 }
 
-// For getifaddrs / getnameinfo
-import Darwin

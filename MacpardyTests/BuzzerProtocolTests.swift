@@ -21,9 +21,69 @@ final class BuzzerProtocolTests: XCTestCase {
     func testJoinMessageDecodes() throws {
         let json = Data(#"{"type":"join","version":1,"code":"AB3XYZ"}"#.utf8)
         let message = try JSONDecoder().decode(ClientMessage.self, from: json)
-        guard case .join(let code, let version) = message else { return XCTFail("expected join") }
+        guard case .join(let code, let version, let diag) = message else { return XCTFail("expected join") }
         XCTAssertEqual(code, "AB3XYZ")
         XCTAssertEqual(version, 1)
+        XCTAssertNil(diag)
+    }
+
+    // MARK: - Phone disconnect report (#81)
+
+    private func decodeJoin(_ json: String) throws -> (code: String, version: Int, diag: PhoneDisconnectReport?) {
+        let message = try JSONDecoder().decode(ClientMessage.self, from: Data(json.utf8))
+        guard case .join(let code, let version, let diag) = message else {
+            XCTFail("expected join")
+            throw CancellationError()
+        }
+        return (code, version, diag)
+    }
+
+    func testJoinWithValidDiagDecodesIt() throws {
+        let join = try decodeJoin(#"""
+        {"type":"join","version":8,"code":"AB3XYZ","diag":{"cause":"watchdog","connectedMs":720000,
+         "hiddenMs":38000,"hiddenAtLoss":false,"secondsSince":41,"closeCode":1006,"closeReason":"bye"}}
+        """#)
+        XCTAssertEqual(join.code, "AB3XYZ")
+        XCTAssertEqual(join.version, 8)
+        XCTAssertEqual(join.diag, PhoneDisconnectReport(
+            cause: .watchdog,
+            closeCode: 1006,
+            closeReason: "bye",
+            connectedMs: 720_000,
+            hiddenMs: 38_000,
+            hiddenAtLoss: false,
+            secondsSince: 41
+        ))
+    }
+
+    func testJoinWithoutDiagHasNone() throws {
+        let join = try decodeJoin(#"{"type":"join","version":8,"code":"AB3XYZ"}"#)
+        XCTAssertEqual(join.code, "AB3XYZ")
+        XCTAssertNil(join.diag)
+    }
+
+    func testJoinWithGarbageDiagStillDecodes() throws {
+        for garbage in [#""watchdog""#, "42", "[1,2]", "null", "{}", #"{"cause":7,"connectedMs":"long"}"#] {
+            let join = try decodeJoin(#"{"type":"join","version":8,"code":"AB3XYZ","diag":"# + garbage + "}")
+            XCTAssertEqual(join.code, "AB3XYZ", garbage)
+            XCTAssertNil(join.diag, garbage)
+        }
+    }
+
+    func testDiagClampsNumbersTruncatesStringsAndDropsUnknownCause() throws {
+        let longReason = String(repeating: "x", count: 500)
+        let join = try decodeJoin(#"""
+        {"type":"join","version":8,"code":"AB3XYZ","diag":{"cause":"aliens","connectedMs":-5,
+         "hiddenMs":1e30,"secondsSince":12.7,"closeCode":99999,"closeReason":"\#(longReason)","hiddenAtLoss":"yes"}}
+        """#)
+        let diag = try XCTUnwrap(join.diag)
+        XCTAssertNil(diag.cause)
+        XCTAssertEqual(diag.connectedMs, 0)
+        XCTAssertEqual(diag.hiddenMs, PhoneDisconnectReport.maxDurationMs)
+        XCTAssertEqual(diag.secondsSince, 12)
+        XCTAssertEqual(diag.closeCode, 4999)
+        XCTAssertEqual(diag.closeReason?.count, PhoneDisconnectReport.maxStringLength)
+        XCTAssertNil(diag.hiddenAtLoss)
     }
 
     func testJoinWithoutVersionIsRejected() {
@@ -114,8 +174,8 @@ final class BuzzerProtocolTests: XCTestCase {
 
     // MARK: - Game PIN entry and session end (#61)
 
-    func testProtocolVersionIsSeven() {
-        XCTAssertEqual(BuzzerConstants.protocolVersion, 7)
+    func testProtocolVersionIsEight() {
+        XCTAssertEqual(BuzzerConstants.protocolVersion, 8)
     }
 
     func testJoinRejectedEncodesCodeAndReason() throws {
