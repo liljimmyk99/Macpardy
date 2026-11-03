@@ -1,0 +1,22 @@
+name: Set up Macpardy build
+description: Selects Xcode and installs the pinned Tuist so the project can be generated and built.
+
+runs:
+  using: composite
+  steps:
+    # The app targets the macOS 26.3 SDK, so stay on Xcode 26.3 or a later 26.x.
+    - uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '^26.3'
+
+    - uses: jdx/mise-action@v2
+      with:
+        mise_toml: |
+          [tools]
+          tuist = "4.50.2"
+
+    - name: Show tool versions
+      shell: bash
+      run: |
+        xcodebuild -version
+        tuist version

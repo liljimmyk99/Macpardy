@@ -1,0 +1,48 @@
+name: CI
+
+# Runs the tests and a full export on every PR, so a broken build or export shows up
+# before it reaches master. The DMG is attached to the run for trying the change.
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # export.sh counts commits for the build number
+
+      - uses: ./.github/actions/setup-build
+
+      - name: Generate project
+        run: tuist generate --no-open
+
+      - name: Test
+        run: |
+          xcodebuild test \
+            -project Macpardy.xcodeproj \
+            -scheme Macpardy \
+            -destination 'platform=macOS' \
+            -derivedDataPath build/TestDerivedData \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY=-
+
+      - name: Export
+        run: ./scripts/export.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Macpardy-dmg
+          path: build/exports/Macpardy.dmg
+          retention-days: 14

@@ -26,7 +26,7 @@ web page the app serves on the local network.
 | [`docs/csv-import.md`](docs/csv-import.md) | Touching CSV import or the CSV template |
 | [`docs/sounds.md`](docs/sounds.md) | Touching sound effects, music, or the sound settings |
 | [`docs/buzzer-protocol.md`](docs/buzzer-protocol.md) | Touching the phone buzzer server, `buzzer.html`, or any WebSocket message |
-| [`EXPORTING.md`](EXPORTING.md) | Building a shareable `.app` / `.dmg` |
+| [`EXPORTING.md`](EXPORTING.md) | Building a shareable `.app` / `.dmg`, or cutting a release |
 
 ## Build, run, test
 
@@ -155,6 +155,9 @@ Saved boards and auto-saves outlive app versions. When changing `MacpardyBoard`,
 
 - Work is tracked in GitHub issues. Branches are named `feat/<short-name>` (or
   `feat/<short-name>-<issue>`); docs-only branches `docs/<short-name>`.
+- To release, bump `MARKETING_VERSION` in `Project.swift` in its own PR, merge it, then
+  run the **Release** workflow on `master` by hand; it tags, builds and publishes the
+  GitHub release (see `EXPORTING.md`). Don't create release tags by hand.
 - Commit messages and PR titles follow Conventional Commits: `feat: …`, `fix: …`, `docs: …`.
 - PR descriptions: start with `Closes #<n>.`, then **What changed**, behaviour changes the
   reviewer should know about, and anything deliberately left out.
