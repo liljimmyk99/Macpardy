@@ -138,7 +138,10 @@ level, but saved and exported). See [`docs/architecture.md`](docs/architecture.m
 The app is sandboxed with only: user-selected file read/write, and network server + client
 (for the buzzer server). The client entitlement is there only because a sandboxed
 `NWListener` can't accept connections from other devices without it; the app doesn't make
-outgoing connections, so don't add features that do. Don't add features that need
+outgoing connections, so don't add features that do. The one planned exception is the
+external buzzer server (#99): the app may connect out to the server URL the host entered,
+and only while the external server is turned on in Settings > Buzzers. See
+[External buzzer server](#external-buzzer-server-in-progress-99). Don't add features that need
 new entitlements without calling it out in the PR; `scripts/export.sh` checks the exact set.
 Files the user picks must be read with security-scoped access (see `FileManagerService`).
 
@@ -150,6 +153,52 @@ Saved boards and auto-saves outlive app versions. When changing `MacpardyBoard`,
   changes.
 - Update the matching doc (`board-format.md`, `buzzer-protocol.md`) and `buzzer.html` in the
   same PR.
+
+## External buzzer server (in progress, #99)
+
+The buzzer server is moving out of the app into a Swift package that runs either inside the
+app (**built-in**, the default) or as a **self-hosted** Docker server that phones reach over
+the internet. Tracking issue: #99. Phases, in order: #100 extract the core, #101 split
+`BuzzerServer` into `BuzzerRoom` and a transport, #102 `BuzzerBackend` in the app, #103 the
+self-hosted server, #104 connect the app to it, #105 docs, CI, release and the repo move.
+
+Decisions made. Build to these; don't reopen them in a PR without asking:
+- **Location.** The package lives in `Packages/MacpardyBuzzer` (a local Tuist package) while
+  the work is in progress, then moves to its own repo once all phases are done.
+- **Two modes.** The built-in server stays the default and is for phones on the same network
+  as the Mac. The self-hosted server is opt-in (Settings > Buzzers: server URL and host
+  token) and is for phones on other networks. Don't add support for playing on the
+  self-hosted server's own network (NAT loopback); those players use the built-in server.
+- **Game PIN.** The self-hosted server owns the PIN and sends it to the host for display. The
+  join URL and QR code are built from the server URL the user entered.
+- **Rooms.** One self-hosted server runs several rooms, keyed by PIN. A phone's `join` picks
+  the room by its `code`.
+- **Host drops.** The room is kept for a grace period of 30–60 seconds so the Mac can
+  reconnect and resync. After that the server sends `sessionEnded` to every phone and
+  closes the room.
+- **Security.** Opening a room needs the host token. It only travels over `wss://`, is
+  stored in the Keychain, and is never logged. The server limits rooms and phones, and its
+  per-IP rate limits can trust `X-Forwarded-For` behind the reverse proxy.
+- **Deployment.** The server is a Docker image behind a reverse proxy that handles HTTPS
+  (for example Caddy and Let's Encrypt in front of a DuckDNS name). `buzzer.html` uses
+  `wss://` when the page is served over `https:`.
+- **Protocols.** The Mac-to-server channel gets its own host protocol and version. The phone
+  protocol stays at v10 unless the wire format changes.
+- **Privacy.** The self-hosted server follows the same logging content rules as the app: no
+  clue text, answer text, Final answers or host token.
+- **Open: network transport.** Either SwiftNIO for both modes, or Network.framework for the
+  built-in server and SwiftNIO for the self-hosted one. This is decided in #103 and doesn't
+  block #100–#102.
+
+While this is in progress:
+- Package code is Foundation-only (no `Network`, `AppKit`, `OSLog` or `CommonCrypto` in the
+  core) so it can build on Linux. It logs through an injected logging protocol that the app
+  connects to `AppLogger`, not through `AppLogger` directly.
+- Package types are `public` and `Sendable`. The package doesn't use the app's default
+  `MainActor` isolation.
+- Tests for code that moves into the package move with it and run with `swift test`.
+- Keep `BuzzerState`'s public API stable, so views don't change while the backend changes
+  under them.
 
 ## Workflow
 
