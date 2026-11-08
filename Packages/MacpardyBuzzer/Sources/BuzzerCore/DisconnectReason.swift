@@ -1,21 +1,22 @@
 //
 //  DisconnectReason.swift
-//  Macpardy
+//  BuzzerCore
 //
-//  Why the server dropped a phone's connection (#81), so each disconnect logs
-//  one specific line instead of a generic "Client removed".
+//  Why a phone's connection was dropped (#81), so each disconnect logs one
+//  specific line instead of a generic "Client removed". The room picks most
+//  reasons; the transport reports the ones it sees (close frames, network
+//  errors, bad frames). The app describes Network.framework errors for
+//  `networkError` itself, since the package can't import Network.
 //
 
-import BuzzerCore
 import Foundation
-import Network
 
-nonisolated enum DisconnectReason: Equatable, Sendable {
+public enum DisconnectReason: Equatable, Sendable {
     /// The phone sent a WebSocket close frame, with its status code if it had one.
     case phoneClosed(code: UInt16?)
     /// The TCP connection ended without a WebSocket close frame.
     case connectionEnded
-    /// Network.framework reported an error on the connection.
+    /// The transport reported an error on the connection, already described.
     case networkError(String)
     /// No pong within the heartbeat TTL.
     case heartbeatTimeout(sinceLastPong: TimeInterval)
@@ -34,7 +35,7 @@ nonisolated enum DisconnectReason: Equatable, Sendable {
     /// The same phone rejoined on a new connection and took its team back.
     case replacedByNewConnection
 
-    var description: String {
+    public var description: String {
         switch self {
         case .phoneClosed(let code):
             "phone closed the connection (\(WebSocketCloseCode.describe(code)))"
@@ -62,7 +63,7 @@ nonisolated enum DisconnectReason: Equatable, Sendable {
     }
 
     /// Expected endings are `info`; ones that point at a problem are `warning`.
-    var logLevel: LogLevel {
+    public var logLevel: BuzzerLogLevel {
         switch self {
         case .removedByHost, .serverStopped, .joinRejected, .replacedByNewConnection:
             .info
@@ -70,23 +71,6 @@ nonisolated enum DisconnectReason: Equatable, Sendable {
             code == 1000 || code == 1001 ? .info : .warning
         case .connectionEnded, .networkError, .heartbeatTimeout, .neverJoined, .invalidFrame, .oversizedMessage:
             .warning
-        }
-    }
-
-    // MARK: - Network errors
-
-    /// A short description of a connection error, e.g.
-    /// "Connection reset by peer (POSIX 54)".
-    static func describe(_ error: NWError) -> String {
-        switch error {
-        case .posix(let code):
-            "\(String(cString: strerror(code.rawValue))) (POSIX \(code.rawValue))"
-        case .dns(let code):
-            "DNS error \(code)"
-        case .tls(let status):
-            "TLS error \(status)"
-        default:
-            String(describing: error)
         }
     }
 }

@@ -21,7 +21,7 @@ live, see [file-structure.md](file-structure.md).
    BoardPackage           Application Support/           Network.framework, default port 8472
    BoardLoader            saved_game.json                HTTP GET / → buzzer.html
    CSVBoardImporter                                      WebSocket /ws ⇄ phones
-   ImageImporter
+   ImageImporter                                         BuzzerRoom (actor): the rules
 ```
 
 Everything runs in one process on the host's Mac. There is no backend, and the app never
@@ -180,25 +180,27 @@ GameState action ─▶ triggerSave() ─▶ GameSnapshot(from: self)
 
 ## Phone buzzers
 
-Code: the pure rules are in the `BuzzerCore` package (`Packages/MacpardyBuzzer`); the
-server, its I/O and the app bridge are in `Services/Buzzer/`. Protocol:
-[buzzer-protocol.md](buzzer-protocol.md).
+Code: the rules are in the `BuzzerCore` package (`Packages/MacpardyBuzzer`), centred on
+`BuzzerRoom`; the Network.framework transport and the app bridge are in `Services/Buzzer/`.
+Protocol: [buzzer-protocol.md](buzzer-protocol.md).
 
 ```
  MacpardyApp ──syncTeams / syncScores / setMode / openWagering / setAnswering──▶ BuzzerState (@Observable, main actor)
-      ▲                                                                │ owns
+      ▲                                                                │ owns both; game calls go to the room
       │  onWagerSubmitted, onAnswerSubmitted, firstBuzzTeamID,         ▼
-      │  claimed/disconnected teams              BuzzerServer (actor, NWListener, default :8472)
-      └─────────────── AsyncStreams ◀──────────   ├─ ClientSession per connection
-                                                  │
-                                                  │  BuzzerCore (package, Foundation only):
-                                                  ├─ WebSocketFrameParser (hand-rolled RFC 6455)
-                                                  ├─ TeamClaimRegistry   who holds which team
-                                                  ├─ BuzzerEngine        armed/locked-out/answering
-                                                  │    └─ BuzzTieResolver  75 ms window, low score wins
-                                                  ├─ FinalWagerBook      Final wagers & limits
-                                                  ├─ FinalAnswerBook     Final answers (open / locked)
-                                                  └─ AttemptRateLimiter  join code / claim attempts
+      │  claimed/disconnected teams      ┌──────────────── BuzzerServer (actor, transport, default :8472)
+      │                                  │                   NWListener, HTTP, WebSocket handshake + frames
+      │                                  │                   └─ ClientSession per connection (a BuzzerConnection)
+      │                                  │ connect / receive(text:) / disconnect(reason:)      ▲ send / close
+      │                                  ▼                                                     │
+      └──── BuzzerRoomEvent stream ◀── BuzzerRoom (actor, BuzzerCore, no I/O) ─────────────────┘
+                                          │  BuzzerScheduler: clock + heartbeat / tie-window timers
+                                          ├─ TeamClaimRegistry   who holds which team
+                                          ├─ BuzzerEngine        armed/locked-out/answering
+                                          │    └─ BuzzTieResolver  75 ms window, low score wins
+                                          ├─ FinalWagerBook      Final wagers & limits
+                                          ├─ FinalAnswerBook     Final answers (open / locked)
+                                          └─ AttemptRateLimiter  join code / claim / uiEvent attempts
 ```
 
 - **Server lifecycle:** started when a game is selected, stopped when the app returns to the
@@ -221,16 +223,26 @@ server, its I/O and the app bridge are in `Services/Buzzer/`. Protocol:
   It also forwards `BuzzerState.firstBuzzTeamID` to `GameState.teamBuzzedIn`, and sends the
   response timer's start / stop to the phones when `answeringTeamID` changes (the phones
   count down themselves).
-- **Server → app:** async streams for claimed teams, the first buzz, wager and answer submissions,
-  connection count, and listener failures, surfaced as `BuzzerState` properties.
+- **Room → app:** one ordered `BuzzerRoomEvent` stream (claimed teams, first buzz, wager and
+  answer submissions, joined-phone count, transport failure), surfaced as `BuzzerState`
+  properties. The same events will travel over the host protocol to a self-hosted server (#104).
 - **Host actions:** score buttons call `GameState.judgeResponse` and then
   `teamAnsweredWrong` / `teamAnsweredCorrect` on normal clues; the toolbar's Buzzers popover can remove a team's phone.
-- **Pure logic is separated from I/O:** `BuzzerEngine`, `TeamClaimRegistry`,
-  `FinalWagerBook`, `FinalAnswerBook`, `BuzzTieResolver`, `AttemptRateLimiter`,
-  `WebSocketFrameParser` and the message types live in the `BuzzerCore` package (#100). They
-  are `public`, `Sendable` value types with no `MainActor` isolation, tested with `swift test`
-  in the package; `BuzzerServer` wires them to the network. This is the first step of moving
-  the server into the package so it can also run self-hosted (#99).
+- **Rules are separated from I/O (#100, #101):** `BuzzerRoom` (an actor in `BuzzerCore`) holds
+  a game's phones and every rule: the Game PIN and protocol version check with rate limits,
+  team claims and restoring a returning `device`, the heartbeat ping and TTL eviction, buzzes
+  and the tie window, the response timer, Final wagers and answers, `uiEvent` and `diag`
+  logging, and `sessionEnded` on stop. It talks to phones only through `BuzzerConnection`
+  (send a `ServerMessage`, close with a `DisconnectReason`, remote key, User-Agent) and reads
+  time and schedules timers through an injected `BuzzerScheduler`, so `BuzzerRoomTests` use
+  fake phones and a test clock. The join code is passed in. `BuzzerServer` is only the
+  transport: the listener, HTTP and `buzzer.html`, the WebSocket handshake and frames, mapping
+  Network.framework errors to a `DisconnectReason`, and the App Nap / idle-sleep activity. It
+  hands the room each text message and reports why a connection ended. The value types
+  (`BuzzerEngine`, `TeamClaimRegistry`, the books, `AttemptRateLimiter`,
+  `WebSocketFrameParser`, the messages) are in the package too, all `public` and `Sendable`
+  with no `MainActor` isolation, tested with `swift test`. Next, #102 puts a `BuzzerBackend`
+  in front of the room so the app can also use a self-hosted server (#99).
 - Constants (default port, heartbeat, tie window, rate limits, protocol version) are in
   `BuzzerConstants`, in the package. `AppSettings.defaultBuzzerPort` reads the default port from
   it; the port the host picked in Settings comes from `AppSettings.buzzerPort()`.
@@ -240,11 +252,11 @@ server, its I/O and the app bridge are in `Services/Buzzer/`. Protocol:
   Helpers mirror `MacpardyLogger` (`info`, `state`, `phone`, `change`, …). The app passes
   `AppBuzzerLogger`, which forwards to `AppLogger.buzzer`, so those lines reach the Logs
   window with their filters. The content rules are the same.
-- **Diagnostics (#81):** every path that drops a phone passes a `DisconnectReason` to
-  `removeSession`, which logs one line: team (or IP), a 4-character id from the session UUID,
-  connected time and reason (close code, `NWError`, seconds since the last pong, …).
-  `ClientSession` keeps the handshake's User-Agent (`UserAgentSummary` shortens it) and the
-  last team it held. A phone's `join` may carry `PhoneDisconnectReport` (`diag`), logged as a
+- **Diagnostics (#81):** every path that drops a phone ends in the room's `removeSession` with
+  a `DisconnectReason` (the transport passes its own through `disconnect(_:reason:)`), which
+  logs one line: team (or IP), a 4-character id from the connection UUID, connected time and
+  reason (close code, `NWError`, seconds since the last pong, …). The room keeps each phone's
+  User-Agent (`UserAgentSummary` shortens it) and the last team it held. A phone's `join` may carry `PhoneDisconnectReport` (`diag`), logged as a
   "Phone report" line. While the server runs, `BuzzerState` runs an `NWPathMonitor` and logs
   Mac network changes (`NetworkPathSummary`); `LocalNetworkInterfaces` picks the join IP and
   lists every candidate when none is usable.
@@ -302,7 +314,7 @@ searchable prefix:
 | `nav:` | `.logPresentation`, file picker results (`UIActionLog.filePicked`), Settings tabs | `nav: alert 'Save changes?' presented` |
 | `app:` | `MacpardyApp`, `MacpardyAppDelegate`, `.logWindowLifecycle` | `app: scenePhase active → inactive` |
 | `state:` | the models, `MacpardyLogger.change` / `.state` | `state: Team 2 'Blue' score: 400 → 800 (+400, correct)` |
-| `phone:` | `BuzzerServer` (every inbound message but `pong`, and `uiEvent`) | `phone: Blue (10.0.0.4 #a1b2): buzz` |
+| `phone:` | `BuzzerRoom` (every inbound message but `pong`, and `uiEvent`) | `phone: Blue (10.0.0.4 #a1b2): buzz` |
 
 - **Helpers** (`Services/Logging/VerboseLogging.swift`): `MacpardyLogger.change(_:from:to:reason:team:)`
   logs `state: <field>: <old> → <new> (<reason>)` and nothing when the value didn't change.

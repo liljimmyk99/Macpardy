@@ -2,37 +2,25 @@
 //  ClientSession.swift
 //  Macpardy
 //
-//  Represents a single connected WebSocket client (one phone browser tab).
+//  One phone's WebSocket over Network.framework: the connection, its frame
+//  buffers, and sending. The phone's game state (joined, team, last pong)
+//  lives in `BuzzerRoom`, which talks to it as a `BuzzerConnection` (#101).
 //
 
 import BuzzerCore
 import Foundation
 import Network
 
-/// Tracks the state of a single WebSocket client connection.
-///
-/// Marked `@unchecked Sendable` because its mutable state (`lastPong`,
-/// `isAuthenticated`) is always mutated from within the `BuzzerServer` actor.
-nonisolated final class ClientSession: Identifiable, @unchecked Sendable {
+/// Marked `@unchecked Sendable` because its mutable buffers are only touched
+/// from within the `BuzzerServer` actor, by the connection's read loop.
+nonisolated final class ClientSession: BuzzerConnection, @unchecked Sendable {
 
     nonisolated let id = UUID()
 
     /// The underlying Network.framework connection for this client.
     nonisolated let connection: NWConnection
 
-    /// Timestamp of the last pong received from this client.
-    /// Always mutated from within the BuzzerServer actor.
-    var lastPong: Date = Date()
-
-    /// Whether this client has successfully sent a valid join code.
-    /// Always mutated from within the BuzzerServer actor.
-    var isAuthenticated: Bool = false
-
-    /// When the WebSocket handshake completed; used to evict clients that never join.
-    let connectedAt = Date()
-
     /// Bytes received but not yet parsed into complete WebSocket frames.
-    /// Always mutated from within the BuzzerServer actor.
     var receiveBuffer = Data()
 
     /// Payload of an in-progress fragmented text message (opcode 0x1 without FIN).
@@ -45,23 +33,8 @@ nonisolated final class ClientSession: Identifiable, @unchecked Sendable {
     /// The browser's User-Agent header from the WebSocket handshake, if sent.
     nonisolated let userAgent: String?
 
-    /// The page's `device` id from its `join`, if it sent a usable one.
-    /// Always mutated from within the BuzzerServer actor.
-    var deviceID: String?
-
-    /// The last team this phone held. Kept after the claim is released so the
-    /// disconnect line can still name the team.
-    var claimedTeamName: String?
-
-    /// First four characters of `id`, to tell apart log lines from phones on
-    /// the same address.
+    /// First four characters of `id`, matching the room's log lines.
     nonisolated var shortID: String { String(id.uuidString.prefix(4)).lowercased() }
-
-    /// How log lines name this phone: its team once it has claimed one,
-    /// otherwise its address, plus `shortID`.
-    var logLabel: String {
-        if let claimedTeamName { "\(claimedTeamName) (\(remoteKey) #\(shortID))" } else { "\(remoteKey) #\(shortID)" }
-    }
 
     nonisolated init(connection: NWConnection, userAgent: String? = nil) {
         self.connection = connection
@@ -79,28 +52,12 @@ nonisolated final class ClientSession: Identifiable, @unchecked Sendable {
     // MARK: - Sending
 
     /// Encodes `message` as JSON and sends it as a WebSocket text frame.
-    nonisolated func send(_ message: ServerMessage, closeAfterSending: Bool = false) {
+    nonisolated func send(_ message: ServerMessage, closeAfterSending: Bool) {
         guard let data = try? message.jsonData() else {
             AppLogger.buzzer.error("Couldn't encode a message for \(remoteKey) #\(shortID)", remote: remoteKey)
             return
         }
-        var frame = Data()
-        let len = data.count
-        frame.append(0x81)   // FIN + opcode text (0x1)
-        if len < 126 {
-            frame.append(UInt8(len))
-        } else if len < 65536 {
-            frame.append(126)
-            frame.append(UInt8(len >> 8))
-            frame.append(UInt8(len & 0xFF))
-        } else {
-            frame.append(127)
-            for shift in stride(from: 56, through: 0, by: -8) {
-                frame.append(UInt8((len >> shift) & 0xFF))
-            }
-        }
-        frame.append(contentsOf: data)
-        connection.send(content: frame, completion: .contentProcessed { [connection] error in
+        connection.send(content: Self.frame(opcode: 0x1, payload: data), completion: .contentProcessed { [connection] error in
             if let error {
                 AppLogger.buzzer.warning(
                     "Send to \(self.remoteKey) #\(self.shortID) failed: \(DisconnectReason.describe(error))",
@@ -113,8 +70,40 @@ nonisolated final class ClientSession: Identifiable, @unchecked Sendable {
         })
     }
 
-    /// Closes the WebSocket connection cleanly.
+    /// Sends a control frame (a pong) without waiting for it to go out.
+    nonisolated func sendControlFrame(opcode: UInt8, payload: Data) {
+        connection.send(content: Self.frame(opcode: opcode, payload: payload), completion: .idempotent)
+    }
+
+    /// Closes the connection. Network.framework has no close code to pick, so
+    /// the reason isn't sent; the room has already logged it.
+    nonisolated func close(reason: DisconnectReason) {
+        close()
+    }
+
     nonisolated func close() {
         connection.cancel()
+    }
+
+    /// A minimal unmasked WebSocket frame with FIN set. Server-to-client
+    /// frames are never masked (RFC 6455 §5.1).
+    nonisolated static func frame(opcode: UInt8, payload: Data) -> Data {
+        var frame = Data()
+        frame.append(0x80 | (opcode & 0x0F))
+        let len = payload.count
+        if len < 126 {
+            frame.append(UInt8(len))
+        } else if len < 65536 {
+            frame.append(126)
+            frame.append(UInt8(len >> 8))
+            frame.append(UInt8(len & 0xFF))
+        } else {
+            frame.append(127)
+            for shift in stride(from: 56, through: 0, by: -8) {
+                frame.append(UInt8((len >> shift) & 0xFF))
+            }
+        }
+        frame.append(contentsOf: payload)
+        return frame
     }
 }

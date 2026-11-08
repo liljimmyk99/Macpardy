@@ -61,7 +61,7 @@ the build or tests pass.
 - **Default actor isolation is `MainActor`** (`SWIFT_DEFAULT_ACTOR_ISOLATION`), with
   approachable concurrency on. Pure logic that has to run off the main actor (parsers,
   package reading) is marked `nonisolated`, as in `BoardPackage`. Follow the same pattern for
-  new pure types. The buzzer rules (the engine, books, messages) are in the `BuzzerCore`
+  new pure types. The buzzer rules (`BuzzerRoom`, the engine, books, messages) are in the `BuzzerCore`
   package instead, which has no default isolation (see
   [External buzzer server](#external-buzzer-server-in-progress-99)).
 - Shared observable state uses the Observation framework (`@Observable` classes passed with
@@ -203,6 +203,10 @@ While this is in progress:
   connects to `AppLogger`, not through `AppLogger` directly.
 - Package types are `public` and `Sendable`. The package doesn't use the app's default
   `MainActor` isolation.
+- `BuzzerRoom` has no I/O (#101). It reaches phones only through `BuzzerConnection` and reads
+  the time and schedules timers only through its `BuzzerScheduler`, never `Date()` or
+  `Task.sleep`, so its tests run on a test clock. Network code stays in the transport
+  (`BuzzerServer` and `ClientSession` in the app).
 - Tests for code that moves into the package move with it and run with `swift test`.
 - Keep `BuzzerState`'s public API stable, so views don't change while the backend changes
   under them.

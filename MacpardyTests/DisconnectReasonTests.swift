@@ -2,7 +2,11 @@
 //  DisconnectReasonTests.swift
 //  MacpardyTests
 //
+//  The app's Network.framework error text. The rest of `DisconnectReason`
+//  is tested in BuzzerCore.
+//
 
+import BuzzerCore
 import Network
 import XCTest
 @testable import Macpardy
