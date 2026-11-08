@@ -1,6 +1,6 @@
 //
 //  PhoneDisconnectReport.swift
-//  Macpardy
+//  BuzzerCore
 //
 //  The phone's account of how its previous connection ended, sent as the
 //  optional `diag` object on its next `join` (protocol v8, #81). The Mac
@@ -13,9 +13,9 @@
 
 import Foundation
 
-nonisolated struct PhoneDisconnectReport: Equatable, Sendable {
+public struct PhoneDisconnectReport: Equatable, Sendable {
 
-    enum Cause: String, Sendable {
+    public enum Cause: String, Sendable {
         /// The page heard nothing from the Mac for 5 s and gave up.
         case watchdog
         /// The socket closed (see `closeCode`).
@@ -28,26 +28,26 @@ nonisolated struct PhoneDisconnectReport: Equatable, Sendable {
         case sessionEnded
     }
 
-    static let maxStringLength = 64
+    public static let maxStringLength = 64
     /// Longer than any game; anything above is clamped.
-    static let maxDurationMs = 7 * 24 * 60 * 60 * 1000
-    static let maxSecondsSince = 30 * 24 * 60 * 60
+    public static let maxDurationMs = 7 * 24 * 60 * 60 * 1000
+    public static let maxSecondsSince = 30 * 24 * 60 * 60
 
-    var cause: Cause?
+    public var cause: Cause?
     /// WebSocket close code the page saw (1000–4999).
-    var closeCode: Int?
+    public var closeCode: Int?
     /// WebSocket close reason the page saw, at most `maxStringLength` characters.
-    var closeReason: String?
+    public var closeReason: String?
     /// How long the connection had been joined.
-    var connectedMs: Int?
+    public var connectedMs: Int?
     /// How long the page was hidden during that connection.
-    var hiddenMs: Int?
+    public var hiddenMs: Int?
     /// Whether the page was hidden when the connection was lost.
-    var hiddenAtLoss: Bool?
+    public var hiddenAtLoss: Bool?
     /// Seconds between the loss and this `join`.
-    var secondsSince: Int?
+    public var secondsSince: Int?
 
-    init(
+    public init(
         cause: Cause? = nil,
         closeCode: Int? = nil,
         closeReason: String? = nil,
@@ -66,7 +66,7 @@ nonisolated struct PhoneDisconnectReport: Equatable, Sendable {
     }
 
     /// True when nothing usable was sent.
-    var isEmpty: Bool {
+    public var isEmpty: Bool {
         cause == nil && closeCode == nil && closeReason == nil && connectedMs == nil
             && hiddenMs == nil && hiddenAtLoss == nil && secondsSince == nil
     }
@@ -76,7 +76,7 @@ nonisolated struct PhoneDisconnectReport: Equatable, Sendable {
     /// The report in plain words, e.g. "previous connection lost 41s ago after
     /// 12m — the phone heard nothing from the Mac for 5s (watchdog); page was
     /// hidden for 38s (screen locked or app switched)".
-    var summary: String {
+    public var summary: String {
         var head = "previous connection"
         switch cause {
         case .removed: head += " was removed by the host"
@@ -105,7 +105,7 @@ nonisolated struct PhoneDisconnectReport: Equatable, Sendable {
         case .watchdog:
             return "the phone heard nothing from the Mac for 5s (watchdog)"
         case .socketClose:
-            var text = "the socket closed (\(DisconnectReason.describe(closeCode: closeCode.map { UInt16(clamping: $0) })))"
+            var text = "the socket closed (\(WebSocketCloseCode.describe(closeCode.map { UInt16(clamping: $0) })))"
             if let closeReason, !closeReason.isEmpty { text += " “\(closeReason)”" }
             return text
         case .socketError:
@@ -122,7 +122,7 @@ extension PhoneDisconnectReport: Decodable {
         case cause, closeCode, closeReason, connectedMs, hiddenMs, hiddenAtLoss, secondsSince
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         // Each field is read on its own, so one bad value only loses that field.
         func int(_ key: CodingKeys, in range: ClosedRange<Int>) -> Int? {

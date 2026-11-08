@@ -7,6 +7,9 @@ let project = Project(
             url: "https://github.com/weichsel/ZIPFoundation",
             requirement: .upToNextMinor(from: "0.9.19")
         ),
+        // The buzzer core (#99). Local while the external-server work is in
+        // progress; it moves to its own repo once that's done.
+        .local(path: "Packages/MacpardyBuzzer"),
     ],
     targets: [
         .target(
@@ -63,6 +66,7 @@ let project = Project(
             ],
             dependencies: [
                 .package(product: "ZIPFoundation"),
+                .package(product: "BuzzerCore"),
             ],
             settings: .settings(
                 base: [

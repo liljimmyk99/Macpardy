@@ -1,6 +1,6 @@
 //
 //  FinalAnswerBook.swift
-//  Macpardy
+//  BuzzerCore
 //
 //  Validation and storage for Final Macpardy answers typed on phones (#80).
 //  Like FinalWagerBook it has no networking: the server feeds it submissions
@@ -11,7 +11,7 @@
 import Foundation
 
 /// Whether phones can type a Final answer.
-nonisolated enum FinalAnswerWindow: Equatable {
+public enum FinalAnswerWindow: Equatable, Sendable {
     /// Not in the Final clue or answer: phones show the buzzer.
     case closed
     /// The Final clue is up: phones can submit and change their answer.
@@ -21,46 +21,59 @@ nonisolated enum FinalAnswerWindow: Equatable {
 }
 
 /// What a phone's answer screen shows.
-nonisolated struct AnswerInfo: Equatable {
+public struct AnswerInfo: Equatable, Sendable {
     /// True while the team can still submit or change its answer.
-    let open: Bool
+    public let open: Bool
     /// The team's saved answer, if it sent one.
-    let answer: String?
+    public let answer: String?
     /// Longest answer the server accepts, in characters.
-    let maxLength: Int
+    public let maxLength: Int
+
+    public init(open: Bool, answer: String?, maxLength: Int) {
+        self.open = open
+        self.answer = answer
+        self.maxLength = maxLength
+    }
 }
 
 /// An answer a phone submitted, handed to the app to store.
-nonisolated struct AnswerSubmission: Equatable {
-    let teamID: UUID
-    let answer: String
+public struct AnswerSubmission: Equatable, Sendable {
+    public let teamID: UUID
+    public let answer: String
+
+    public init(teamID: UUID, answer: String) {
+        self.teamID = teamID
+        self.answer = answer
+    }
 }
 
 /// Why a submitted answer was refused.
-nonisolated enum AnswerRejectReason: String, Encodable, Equatable {
+public enum AnswerRejectReason: String, Encodable, Equatable, Sendable {
     case notOpen
     case empty
     case tooLong
 }
 
-nonisolated struct FinalAnswerBook {
+public struct FinalAnswerBook: Sendable {
 
     /// Longest answer accepted, in characters. Generous for a written response,
     /// short enough to read on the Display.
-    static let maxLength = 200
+    public static let maxLength = 200
 
-    enum SubmitResult: Equatable {
+    public enum SubmitResult: Equatable, Sendable {
         case accepted(String)
         case rejected(AnswerRejectReason)
     }
 
-    private(set) var window: FinalAnswerWindow = .closed
+    public private(set) var window: FinalAnswerWindow = .closed
     private var answers: [UUID: String] = [:]
+
+    public init() {}
 
     // MARK: - Host-driven transitions
 
     /// Opens, locks or closes answering, taking the answers stored in the game.
-    mutating func set(_ window: FinalAnswerWindow, answers: [UUID: String]) {
+    public mutating func set(_ window: FinalAnswerWindow, answers: [UUID: String]) {
         self.window = window
         self.answers = window == .closed ? [:] : answers
     }
@@ -70,7 +83,7 @@ nonisolated struct FinalAnswerBook {
     /// Saves a team's answer. While answering is open the latest submission
     /// wins, so a team can change its mind until the host reveals the response.
     /// Every team can answer, including ones excluded from wagering.
-    mutating func submit(teamID: UUID, answer: String) -> SubmitResult {
+    public mutating func submit(teamID: UUID, answer: String) -> SubmitResult {
         guard window == .open else { return .rejected(.notOpen) }
         let cleaned = Self.normalize(answer)
         guard !cleaned.isEmpty else { return .rejected(.empty) }
@@ -81,7 +94,7 @@ nonisolated struct FinalAnswerBook {
 
     /// Trims surrounding whitespace and folds line breaks into spaces, so an
     /// answer always fits on one line on the host's screen.
-    static func normalize(_ answer: String) -> String {
+    public static func normalize(_ answer: String) -> String {
         answer
             .components(separatedBy: .newlines)
             .joined(separator: " ")
@@ -91,7 +104,7 @@ nonisolated struct FinalAnswerBook {
     // MARK: - Phone display
 
     /// Nil while answering is closed (the phone shows its buzzer).
-    func info(for teamID: UUID) -> AnswerInfo? {
+    public func info(for teamID: UUID) -> AnswerInfo? {
         guard window != .closed else { return nil }
         return AnswerInfo(open: window == .open, answer: answers[teamID], maxLength: Self.maxLength)
     }

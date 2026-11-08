@@ -1,6 +1,6 @@
 //
 //  TeamClaimRegistry.swift
-//  Macpardy
+//  BuzzerCore
 //
 //  Tracks which phone session currently holds each team. A team is held by at
 //  most one session; a claim lives exactly as long as its session does.
@@ -13,9 +13,9 @@
 
 import Foundation
 
-nonisolated struct TeamClaimRegistry {
+public struct TeamClaimRegistry: Sendable {
 
-    enum ClaimResult: Equatable {
+    public enum ClaimResult: Equatable, Sendable {
         case claimed
         /// The same device held the team on an older session, which the caller
         /// should now close.
@@ -25,28 +25,30 @@ nonisolated struct TeamClaimRegistry {
         case invalidTeam
     }
 
-    private(set) var claims: [UUID: UUID] = [:]   // team id -> session id
+    public private(set) var claims: [UUID: UUID] = [:]   // team id -> session id
     private var deviceBySession: [UUID: String] = [:]   // claiming session id -> device id
     private var lastTeamByDevice: [String: UUID] = [:]  // device id -> team it last held
 
-    var claimedTeamIDs: Set<UUID> { Set(claims.keys) }
+    public init() {}
 
-    func isClaimed(_ teamID: UUID) -> Bool {
+    public var claimedTeamIDs: Set<UUID> { Set(claims.keys) }
+
+    public func isClaimed(_ teamID: UUID) -> Bool {
         claims[teamID] != nil
     }
 
-    func teamID(for sessionID: UUID) -> UUID? {
+    public func teamID(for sessionID: UUID) -> UUID? {
         claims.first { $0.value == sessionID }?.key
     }
 
-    func sessionID(for teamID: UUID) -> UUID? {
+    public func sessionID(for teamID: UUID) -> UUID? {
         claims[teamID]
     }
 
     /// Claims `teamID` for `sessionID`. A session holds at most one team, so any
     /// team it previously held is released when the new claim succeeds. A team
     /// held by another session is taken over only when both share `deviceID`.
-    mutating func claim(teamID: UUID, sessionID: UUID, deviceID: String? = nil, validTeamIDs: Set<UUID>) -> ClaimResult {
+    public mutating func claim(teamID: UUID, sessionID: UUID, deviceID: String? = nil, validTeamIDs: Set<UUID>) -> ClaimResult {
         guard validTeamIDs.contains(teamID) else { return .invalidTeam }
         var result = ClaimResult.claimed
         if let holder = claims[teamID] {
@@ -66,7 +68,7 @@ nonisolated struct TeamClaimRegistry {
 
     /// The team `deviceID` last held, if it still exists and no other device
     /// holds it now.
-    func teamToRestore(forDevice deviceID: String, validTeamIDs: Set<UUID>) -> UUID? {
+    public func teamToRestore(forDevice deviceID: String, validTeamIDs: Set<UUID>) -> UUID? {
         guard let teamID = lastTeamByDevice[deviceID], validTeamIDs.contains(teamID) else { return nil }
         guard let holder = claims[teamID] else { return teamID }
         return deviceBySession[holder] == deviceID ? teamID : nil
@@ -74,7 +76,7 @@ nonisolated struct TeamClaimRegistry {
 
     /// Frees whatever team the session holds. Returns that team's id, if any.
     @discardableResult
-    mutating func release(sessionID: UUID) -> UUID? {
+    public mutating func release(sessionID: UUID) -> UUID? {
         guard let teamID = teamID(for: sessionID) else { return nil }
         claims.removeValue(forKey: teamID)
         deviceBySession.removeValue(forKey: sessionID)
@@ -85,7 +87,7 @@ nonisolated struct TeamClaimRegistry {
     /// holder's device's team so it isn't restored on rejoin. Returns the
     /// previous holder.
     @discardableResult
-    mutating func remove(teamID: UUID) -> UUID? {
+    public mutating func remove(teamID: UUID) -> UUID? {
         guard let holder = claims.removeValue(forKey: teamID) else { return nil }
         if let deviceID = deviceBySession.removeValue(forKey: holder), lastTeamByDevice[deviceID] == teamID {
             lastTeamByDevice.removeValue(forKey: deviceID)
@@ -95,7 +97,7 @@ nonisolated struct TeamClaimRegistry {
 
     /// Drops claims on teams that no longer exist. Returns the evicted sessions.
     @discardableResult
-    mutating func prune(validTeamIDs: Set<UUID>) -> [UUID] {
+    public mutating func prune(validTeamIDs: Set<UUID>) -> [UUID] {
         let stale = claims.keys.filter { !validTeamIDs.contains($0) }
         let evicted = stale.compactMap { claims.removeValue(forKey: $0) }
         evicted.forEach { deviceBySession.removeValue(forKey: $0) }
@@ -105,7 +107,7 @@ nonisolated struct TeamClaimRegistry {
     /// Frees every claim whose session is not in `liveSessionIDs` (TTL sweep).
     /// Returns the freed team ids.
     @discardableResult
-    mutating func sweep(liveSessionIDs: Set<UUID>) -> [UUID] {
+    public mutating func sweep(liveSessionIDs: Set<UUID>) -> [UUID] {
         let dead = claims.filter { !liveSessionIDs.contains($0.value) }
         for (teamID, sessionID) in dead {
             claims.removeValue(forKey: teamID)

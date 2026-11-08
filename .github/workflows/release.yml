@@ -56,6 +56,10 @@ jobs:
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY=-
 
+      # The buzzer core's tests live in its package, not in the Xcode scheme (#100).
+      - name: Test buzzer package
+        run: swift test --package-path Packages/MacpardyBuzzer
+
       - name: Export
         run: ./scripts/export.sh
 

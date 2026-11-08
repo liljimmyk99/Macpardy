@@ -1,12 +1,11 @@
 //
 //  UserAgentSummaryTests.swift
-//  MacpardyTests
+//  BuzzerCoreTests
 //
 
 import XCTest
-@testable import Macpardy
+@testable import BuzzerCore
 
-@MainActor
 final class UserAgentSummaryTests: XCTestCase {
 
     private func check(_ userAgent: String, _ expected: String, file: StaticString = #filePath, line: UInt = #line) {

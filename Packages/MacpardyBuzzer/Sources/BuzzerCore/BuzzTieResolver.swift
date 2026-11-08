@@ -1,6 +1,6 @@
 //
 //  BuzzTieResolver.swift
-//  Macpardy
+//  BuzzerCore
 //
 //  Picks the winner among buzzes received inside the tie window. Kept separate
 //  from the engine so the tie rules can be tweaked on their own.
@@ -9,18 +9,24 @@
 import Foundation
 
 /// One buzz as received by the server.
-nonisolated struct Buzz: Equatable {
-    let teamID: UUID
-    let receivedAt: Date
-    let score: Int
+public struct Buzz: Equatable, Sendable {
+    public let teamID: UUID
+    public let receivedAt: Date
+    public let score: Int
+
+    public init(teamID: UUID, receivedAt: Date, score: Int) {
+        self.teamID = teamID
+        self.receivedAt = receivedAt
+        self.score = score
+    }
 }
 
-nonisolated enum BuzzTieResolver {
+public enum BuzzTieResolver: Sendable {
 
     /// The lowest score wins; teams with equal scores are picked at random.
     /// `randomIndex` receives the number of tied teams and returns an index into
     /// them, so tests can make the random pick deterministic.
-    static func winner(
+    public static func winner(
         of buzzes: [Buzz],
         randomIndex: (Int) -> Int = { Int.random(in: 0..<$0) }
     ) -> Buzz? {

@@ -5,6 +5,7 @@
 //  Represents a single connected WebSocket client (one phone browser tab).
 //
 
+import BuzzerCore
 import Foundation
 import Network
 

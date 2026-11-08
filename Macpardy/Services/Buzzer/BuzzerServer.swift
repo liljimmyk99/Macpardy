@@ -19,6 +19,7 @@
 //  • Reports the connected-client count via an AsyncStream
 //
 
+import BuzzerCore
 import CommonCrypto
 import Foundation
 import Network
@@ -758,7 +759,7 @@ actor BuzzerServer {
             }
 
         case 0x8: // Connection close
-            removeSession(session, reason: .phoneClosed(code: DisconnectReason.closeCode(fromPayload: frame.payload)))
+            removeSession(session, reason: .phoneClosed(code: WebSocketCloseCode.fromPayload(frame.payload)))
             session.close()
 
         case 0x9: // Ping — respond with pong (opcode 0xA)

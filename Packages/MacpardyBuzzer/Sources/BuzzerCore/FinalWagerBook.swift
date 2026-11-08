@@ -1,6 +1,6 @@
 //
 //  FinalWagerBook.swift
-//  Macpardy
+//  BuzzerCore
 //
 //  Validation and storage for Final Macpardy wagers submitted from phones.
 //  It has no networking: the server feeds it submissions and reads back what
@@ -11,22 +11,33 @@
 import Foundation
 
 /// What a phone's wager screen shows.
-nonisolated struct WagerInfo: Equatable {
+public struct WagerInfo: Equatable, Sendable {
     /// False for teams that can't win points (score of zero or less).
-    let eligible: Bool
-    let max: Int
+    public let eligible: Bool
+    public let max: Int
     /// The locked-in wager, if one was submitted or entered by the host.
-    let wager: Int?
+    public let wager: Int?
+
+    public init(eligible: Bool, max: Int, wager: Int?) {
+        self.eligible = eligible
+        self.max = max
+        self.wager = wager
+    }
 }
 
 /// A wager a phone submitted, handed to the app to store.
-nonisolated struct WagerSubmission: Equatable {
-    let teamID: UUID
-    let amount: Int
+public struct WagerSubmission: Equatable, Sendable {
+    public let teamID: UUID
+    public let amount: Int
+
+    public init(teamID: UUID, amount: Int) {
+        self.teamID = teamID
+        self.amount = amount
+    }
 }
 
 /// Why a submitted wager was refused.
-nonisolated enum WagerRejectReason: String, Encodable, Equatable {
+public enum WagerRejectReason: String, Encodable, Equatable, Sendable {
     case notOpen
     case notEligible
     case locked
@@ -34,9 +45,9 @@ nonisolated enum WagerRejectReason: String, Encodable, Equatable {
     case overMax
 }
 
-nonisolated struct FinalWagerBook {
+public struct FinalWagerBook: Sendable {
 
-    enum SubmitResult: Equatable {
+    public enum SubmitResult: Equatable, Sendable {
         case accepted(Int)
         case rejected(WagerRejectReason)
     }
@@ -45,16 +56,18 @@ nonisolated struct FinalWagerBook {
     private var limits: [UUID: Int]?
     private var wagers: [UUID: Int] = [:]
 
-    var isOpen: Bool { limits != nil }
+    public var isOpen: Bool { limits != nil }
+
+    public init() {}
 
     // MARK: - Host-driven transitions
 
-    mutating func open(limits: [UUID: Int], wagers: [UUID: Int]) {
+    public mutating func open(limits: [UUID: Int], wagers: [UUID: Int]) {
         self.limits = limits
         self.wagers = wagers.filter { (limits[$0.key] ?? 0) > 0 }
     }
 
-    mutating func close() {
+    public mutating func close() {
         limits = nil
         wagers = [:]
     }
@@ -62,7 +75,7 @@ nonisolated struct FinalWagerBook {
     /// Stores a wager entered by the host, clamped to the team's limit.
     /// Returns the stored value, or nil if the team can't wager.
     @discardableResult
-    mutating func hostSet(teamID: UUID, amount: Int) -> Int? {
+    public mutating func hostSet(teamID: UUID, amount: Int) -> Int? {
         guard let max = limits?[teamID], max > 0 else { return nil }
         let clamped = Swift.min(Swift.max(0, amount), max)
         wagers[teamID] = clamped
@@ -70,14 +83,14 @@ nonisolated struct FinalWagerBook {
     }
 
     /// Forgets a team's wager (the host cleared it), so it defaults to all-in.
-    mutating func hostClear(teamID: UUID) {
+    public mutating func hostClear(teamID: UUID) {
         wagers[teamID] = nil
     }
 
     // MARK: - Phone input
 
     /// Only the first submission counts; after that only the host can edit.
-    mutating func submit(teamID: UUID, amount: Int) -> SubmitResult {
+    public mutating func submit(teamID: UUID, amount: Int) -> SubmitResult {
         guard let limits else { return .rejected(.notOpen) }
         guard let max = limits[teamID], max > 0 else { return .rejected(.notEligible) }
         guard wagers[teamID] == nil else { return .rejected(.locked) }
@@ -89,7 +102,7 @@ nonisolated struct FinalWagerBook {
 
     // MARK: - Phone display
 
-    func info(for teamID: UUID) -> WagerInfo? {
+    public func info(for teamID: UUID) -> WagerInfo? {
         guard let limits else { return nil }
         let max = limits[teamID] ?? 0
         return WagerInfo(eligible: max > 0, max: Swift.max(0, max), wager: wagers[teamID])

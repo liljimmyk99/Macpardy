@@ -6,6 +6,7 @@
 //  Inject this into the environment via MacpardyApp.
 //
 
+import BuzzerCore
 import Foundation
 import Network
 

@@ -4,6 +4,7 @@
 //
 //  Created by Jimmy Kane on 7/15/26.
 //
+import BuzzerCore
 import Foundation
 
 @Observable

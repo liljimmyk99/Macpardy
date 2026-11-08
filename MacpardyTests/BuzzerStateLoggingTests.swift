@@ -5,6 +5,7 @@
 //  BuzzerState's state lines (#87), checked without a running server.
 //
 
+import BuzzerCore
 import XCTest
 @testable import Macpardy
 

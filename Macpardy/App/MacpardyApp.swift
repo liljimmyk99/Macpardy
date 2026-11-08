@@ -6,6 +6,7 @@
 //
 
 import AppKit
+import BuzzerCore
 import SwiftUI
 
 /// Holds a quit while an edited board has unsaved changes, so the editor

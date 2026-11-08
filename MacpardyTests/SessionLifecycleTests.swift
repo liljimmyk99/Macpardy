@@ -3,6 +3,7 @@
 //  MacpardyTests
 //
 
+import BuzzerCore
 import XCTest
 @testable import Macpardy
 

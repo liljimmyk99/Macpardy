@@ -6,6 +6,7 @@
 //  one specific line instead of a generic "Client removed".
 //
 
+import BuzzerCore
 import Foundation
 import Network
 
@@ -36,7 +37,7 @@ nonisolated enum DisconnectReason: Equatable, Sendable {
     var description: String {
         switch self {
         case .phoneClosed(let code):
-            "phone closed the connection (\(Self.describe(closeCode: code)))"
+            "phone closed the connection (\(WebSocketCloseCode.describe(code)))"
         case .connectionEnded:
             "the connection ended without a WebSocket close (phone browser or network dropped it)"
         case .networkError(let detail):
@@ -72,34 +73,6 @@ nonisolated enum DisconnectReason: Equatable, Sendable {
         }
     }
 
-    // MARK: - Close codes
-
-    /// The status code at the start of a close frame's payload (RFC 6455 §5.5.1),
-    /// or nil when the payload is too short to carry one.
-    static func closeCode(fromPayload payload: Data) -> UInt16? {
-        guard payload.count >= 2 else { return nil }
-        let bytes = [UInt8](payload.prefix(2))
-        return UInt16(bytes[0]) << 8 | UInt16(bytes[1])
-    }
-
-    static func describe(closeCode code: UInt16?) -> String {
-        guard let code else { return "no status code" }
-        let meaning: String? = switch code {
-        case 1000: "normal closure"
-        case 1001: "going away: tab closed, reloaded or navigated away"
-        case 1002: "protocol error"
-        case 1003: "unsupported data"
-        case 1005: "no status code"
-        case 1006: "abnormal closure"
-        case 1007: "invalid payload"
-        case 1008: "policy violation"
-        case 1009: "message too big"
-        case 1011: "internal error"
-        default: nil
-        }
-        return meaning.map { "\(code) \($0)" } ?? "code \(code)"
-    }
-
     // MARK: - Network errors
 
     /// A short description of a connection error, e.g.
@@ -115,26 +88,5 @@ nonisolated enum DisconnectReason: Equatable, Sendable {
         default:
             String(describing: error)
         }
-    }
-}
-
-/// Durations for log lines.
-nonisolated enum LogDuration {
-
-    /// Seconds with one decimal under a minute ("6.1s"), else as `format`.
-    static func seconds(_ interval: TimeInterval) -> String {
-        guard interval < 60 else { return format(interval) }
-        return String(format: "%.1fs", max(0, interval))
-    }
-
-    /// "41s", "12m 3s", "1h 5m".
-    static func format(_ interval: TimeInterval) -> String {
-        let total = max(0, Int(interval.rounded()))
-        let hours = total / 3600
-        let minutes = (total % 3600) / 60
-        let seconds = total % 60
-        if hours > 0 { return minutes > 0 ? "\(hours)h \(minutes)m" : "\(hours)h" }
-        if minutes > 0 { return seconds > 0 ? "\(minutes)m \(seconds)s" : "\(minutes)m" }
-        return "\(seconds)s"
     }
 }

@@ -180,7 +180,9 @@ GameState action ─▶ triggerSave() ─▶ GameSnapshot(from: self)
 
 ## Phone buzzers
 
-Code: `Services/Buzzer/`. Protocol: [buzzer-protocol.md](buzzer-protocol.md).
+Code: the pure rules are in the `BuzzerCore` package (`Packages/MacpardyBuzzer`); the
+server, its I/O and the app bridge are in `Services/Buzzer/`. Protocol:
+[buzzer-protocol.md](buzzer-protocol.md).
 
 ```
  MacpardyApp ──syncTeams / syncScores / setMode / openWagering / setAnswering──▶ BuzzerState (@Observable, main actor)
@@ -188,6 +190,8 @@ Code: `Services/Buzzer/`. Protocol: [buzzer-protocol.md](buzzer-protocol.md).
       │  onWagerSubmitted, onAnswerSubmitted, firstBuzzTeamID,         ▼
       │  claimed/disconnected teams              BuzzerServer (actor, NWListener, default :8472)
       └─────────────── AsyncStreams ◀──────────   ├─ ClientSession per connection
+                                                  │
+                                                  │  BuzzerCore (package, Foundation only):
                                                   ├─ WebSocketFrameParser (hand-rolled RFC 6455)
                                                   ├─ TeamClaimRegistry   who holds which team
                                                   ├─ BuzzerEngine        armed/locked-out/answering
@@ -222,9 +226,20 @@ Code: `Services/Buzzer/`. Protocol: [buzzer-protocol.md](buzzer-protocol.md).
 - **Host actions:** score buttons call `GameState.judgeResponse` and then
   `teamAnsweredWrong` / `teamAnsweredCorrect` on normal clues; the toolbar's Buzzers popover can remove a team's phone.
 - **Pure logic is separated from I/O:** `BuzzerEngine`, `TeamClaimRegistry`,
-  `FinalWagerBook`, `FinalAnswerBook`, `BuzzTieResolver`, `AttemptRateLimiter`, and `WebSocketFrameParser` are
-  `nonisolated` value types with unit tests; `BuzzerServer` wires them to the network.
-- Constants (default port, heartbeat, tie window, rate limits) are in `BuzzerConstants`; the port the host picked in Settings comes from `AppSettings.buzzerPort()`.
+  `FinalWagerBook`, `FinalAnswerBook`, `BuzzTieResolver`, `AttemptRateLimiter`,
+  `WebSocketFrameParser` and the message types live in the `BuzzerCore` package (#100). They
+  are `public`, `Sendable` value types with no `MainActor` isolation, tested with `swift test`
+  in the package; `BuzzerServer` wires them to the network. This is the first step of moving
+  the server into the package so it can also run self-hosted (#99).
+- Constants (default port, heartbeat, tie window, rate limits, protocol version) are in
+  `BuzzerConstants`, in the package. `AppSettings.defaultBuzzerPort` reads the default port from
+  it; the port the host picked in Settings comes from `AppSettings.buzzerPort()`.
+- **Package logging:** `BuzzerCore` can't use `AppLogger` (or OSLog, which isn't on Linux).
+  Package code logs through the `BuzzerLogging` protocol: a level, the message, a kind
+  (`plain`, `state`, `phone`) that becomes the verbose-log prefix, and `team:` / `remote:`.
+  Helpers mirror `MacpardyLogger` (`info`, `state`, `phone`, `change`, …). The app passes
+  `AppBuzzerLogger`, which forwards to `AppLogger.buzzer`, so those lines reach the Logs
+  window with their filters. The content rules are the same.
 - **Diagnostics (#81):** every path that drops a phone passes a `DisconnectReason` to
   `removeSession`, which logs one line: team (or IP), a 4-character id from the session UUID,
   connected time and reason (close code, `NWError`, seconds since the last pong, …).

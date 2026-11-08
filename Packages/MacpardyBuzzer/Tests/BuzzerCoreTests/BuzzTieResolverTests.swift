@@ -1,12 +1,11 @@
 //
 //  BuzzTieResolverTests.swift
-//  MacpardyTests
+//  BuzzerCoreTests
 //
 
 import XCTest
-@testable import Macpardy
+@testable import BuzzerCore
 
-@MainActor
 final class BuzzTieResolverTests: XCTestCase {
 
     private let now = Date()
