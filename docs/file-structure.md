@@ -72,13 +72,13 @@ Macpardy/
 │   │   ├── CSVBoardImporter+Messages.swift  Localized issue text
 │   │   ├── CSVBoardTemplate.swift    Downloadable template
 │   │   └── CSVImportDocuments.swift  FileDocuments for the template and JSON export
-│   └── Buzzer/                   Phone buzzer server (see buzzer-protocol.md); pure rules are in BuzzerCore
-│       ├── BuzzerState.swift         @Observable bridge between the app and the server
-│       ├── BuzzerServer.swift        actor: NWListener, HTTP + WebSocket, sessions, heartbeat
-│       ├── ClientSession.swift       One connection's state and send()
+│   └── Buzzer/                   Phone buzzer transport (see buzzer-protocol.md); the rules are BuzzerRoom in BuzzerCore
+│       ├── BuzzerState.swift         @Observable bridge between the app and the room / server
+│       ├── BuzzerServer.swift        actor: NWListener, HTTP, WebSocket handshake and frames
+│       ├── ClientSession.swift       One WebSocket: NWConnection, frame buffers, send() (a BuzzerConnection)
 │       ├── AppBuzzerLogger.swift     BuzzerCore's logging hook → AppLogger.buzzer
 │       ├── QRCodeGenerator.swift     Join URL → QR image
-│       ├── DisconnectReason.swift    Why a phone was dropped (Network.framework errors)
+│       ├── DisconnectReason+Network.swift  Network.framework error text for disconnect lines
 │       ├── LocalNetworkInterfaces.swift  The Mac's IPv4 addresses; which one phones use
 │       └── NetworkPathSummary.swift  "Wi-Fi (en0)" for Mac network-change lines
 ├── Views/
@@ -154,6 +154,13 @@ use the app's default `MainActor` isolation. Files that use it `import BuzzerCor
 Packages/MacpardyBuzzer/
 ├── Package.swift                 BuzzerCore library + BuzzerCoreTests
 ├── Sources/BuzzerCore/
+│   ├── Room/
+│   │   ├── BuzzerRoom.swift      actor: one game's phones and rules (join, claims, heartbeat,
+│   │   │                         buzzes, response timer, Final), no I/O
+│   │   ├── BuzzerConnection.swift  How the room talks to one phone; transports conform
+│   │   ├── BuzzerScheduler.swift  Injected clock and timers (SystemBuzzerScheduler for real)
+│   │   └── BuzzerRoomEvent.swift  What the room reports to the host, on one stream
+│   ├── DisconnectReason.swift    Why a phone was dropped, as one log line
 │   ├── BuzzerConstants.swift     Default port, timeouts, tie window, limits, protocol version
 │   ├── BuzzerMessage.swift       ServerMessage / ClientMessage JSON
 │   ├── BuzzerEngine.swift        Armed / locked-out / answering rules
@@ -181,6 +188,8 @@ Packages/MacpardyBuzzer/
 | `WebSocketCloseCodeTests`, `LogDurationTests` | Close codes, durations |
 | `PhoneDisconnectReportTests`, `UserAgentSummaryTests` | Phone reports, browser names |
 | `BuzzerLoggingTests` | The logging hook's helpers and `change` format |
+| `BuzzerRoomTests` | Join, PIN and claim rate limits, restore by device, heartbeat, ties, response timer, Final, stop (fake phones in `Support/RoomTestDoubles.swift`, test clock) |
+| `DisconnectReasonTests` | Disconnect descriptions and log levels |
 
 ## `MacpardyTests/`
 
@@ -198,9 +207,9 @@ One `<Type>Tests.swift` per type under test:
 | `GameStateEndGameTests` | Complete Game: back to setup, timers stopped, no more saves |
 | `FinalWagerDefaultsTests` | Final Macpardy wager defaults in the game |
 | `FinalAnswerGameStateTests` | Final Macpardy answers from phones, Display spotlight |
-| `DisconnectReasonTests` | Disconnect reasons and network errors |
+| `DisconnectReasonTests` | Network.framework error text |
 | `AppBuzzerLoggerTests`, `BuzzerStateLoggingTests` | BuzzerCore lines reaching the app log; BuzzerState's state lines |
-| `LocalNetworkInterfacesTests`, `BuzzerServerTests` | Join IP choice, network path text, HTTP header parsing |
+| `LocalNetworkInterfacesTests`, `BuzzerServerTests` | Join IP choice, network path text; the transport: headers, handshake, frames, and a real WebSocket join / reject / `sessionEnded` on localhost |
 | `LogRingBufferTests`, `LogFileStoreTests`, `LogFilterTests`, `LogExporterTests` | Live buffer, JSON Lines, retention, filters, export zip and system info |
 | `TestImages` | Helper for building image fixtures |
 
@@ -227,5 +236,5 @@ One `<Type>Tests.swift` per type under test:
 | A host screen | `Views/Control/…` using the view folder pattern |
 | An audience screen | `Views/Display/PresentationView/Components/…` |
 | Something used by both | `Views/Shared/` |
-| Buzzer behaviour | `BuzzerCore` (rules) or `Services/Buzzer/` (I/O) + `buzzer.html` + `buzzer-protocol.md` |
+| Buzzer behaviour | `BuzzerRoom` / `BuzzerCore` (rules) or `Services/Buzzer/` (transport) + `buzzer.html` + `buzzer-protocol.md` |
 | UI text | `Localizable.xcstrings` |

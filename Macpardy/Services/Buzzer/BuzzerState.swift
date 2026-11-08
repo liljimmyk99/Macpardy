@@ -2,7 +2,7 @@
 //  BuzzerState.swift
 //  Macpardy
 //
-//  @Observable bridge between the BuzzerServer actor and SwiftUI views.
+//  @Observable bridge between the buzzer room (and its server) and SwiftUI views.
 //  Inject this into the environment via MacpardyApp.
 //
 
@@ -85,22 +85,19 @@ final class BuzzerState {
 
     private let log = AppLogger.buzzer
 
-    private var wagerObserverTask: Task<Void, Never>?
     private var wageringLimits: [UUID: Int]?
     private var wageringWagers: [UUID: Int] = [:]
-    private var answerObserverTask: Task<Void, Never>?
     private var answeringWindow: FinalAnswerWindow = .closed
     private var answeringAnswers: [UUID: String] = [:]
 
     private var latestScores: [UUID: Int] = [:]
     private var latestMode: BuzzerMode = .disabled
-    private var firstBuzzObserverTask: Task<Void, Never>?
     private var everClaimedTeamIDs: Set<UUID> = []
     private var latestTeams: [BuzzerTeam] = []
     private var server: BuzzerServer?
-    private var countObserverTask: Task<Void, Never>?
-    private var claimedObserverTask: Task<Void, Never>?
-    private var failureObserverTask: Task<Void, Never>?
+    /// The running server's room, which the game calls below go to.
+    private var room: BuzzerRoom?
+    private var eventObserverTask: Task<Void, Never>?
     private var pathMonitor: NWPathMonitor?
     private var lastPathDescription: String?
 
@@ -110,13 +107,13 @@ final class BuzzerState {
     /// server that has not started yet).
     func syncTeams(_ teams: [BuzzerTeam]) async {
         latestTeams = teams
-        await server?.updateTeams(teams)
+        await room?.updateTeams(teams)
     }
 
     /// Pushes team scores to the server; they break ties between simultaneous buzzes.
     func syncScores(_ scores: [UUID: Int]) async {
         latestScores = scores
-        await server?.updateScores(scores)
+        await room?.updateScores(scores)
     }
 
     // MARK: - Buzzer control
@@ -125,18 +122,18 @@ final class BuzzerState {
     func setMode(_ mode: BuzzerMode) async {
         log.change("BuzzerState.mode", from: latestMode, to: mode)
         latestMode = mode
-        await server?.setBuzzerMode(mode)
+        await room?.setBuzzerMode(mode)
     }
 
     /// Locks the team out for the question and re-arms the other teams.
     func teamAnsweredWrong(_ teamID: UUID) async {
         log.state("Buzzer lockout: \(teamLabel(teamID)) answered wrong; other teams re-armed", team: teamName(teamID))
-        await server?.markWrong(teamID: teamID)
+        await room?.markWrong(teamID: teamID)
     }
 
     func teamAnsweredCorrect() async {
         log.state("Buzzers stopped: correct answer")
-        await server?.markCorrect()
+        await room?.markCorrect()
     }
 
     /// Starts the answering team's response countdown on every phone, or stops
@@ -147,7 +144,7 @@ final class BuzzerState {
         } else {
             log.state("Phones' response countdown stopped")
         }
-        await server?.setResponseTimer(teamID: teamID, seconds: seconds)
+        await room?.setResponseTimer(teamID: teamID, seconds: seconds)
     }
 
     // MARK: - Final Macpardy wagers
@@ -161,21 +158,21 @@ final class BuzzerState {
         }
         wageringLimits = limits
         wageringWagers = wagers
-        await server?.openWagering(limits: limits, wagers: wagers)
+        await room?.openWagering(limits: limits, wagers: wagers)
     }
 
     func closeWagering() async {
         if wageringLimits != nil { log.state("Final wagering closed on phones") }
         wageringLimits = nil
         wageringWagers = [:]
-        await server?.closeWagering()
+        await room?.closeWagering()
     }
 
     /// Pushes a wager the host entered or edited (nil = cleared) to the team's phone.
     func hostSetWager(teamID: UUID, amount: Int?) async {
         log.change("\(teamLabel(teamID)) phone wager (host)", from: wageringWagers[teamID], to: amount, team: teamName(teamID))
         wageringWagers[teamID] = amount
-        await server?.setWager(teamID: teamID, amount: amount)
+        await room?.setWager(teamID: teamID, amount: amount)
     }
 
     // MARK: - Final Macpardy answers
@@ -186,13 +183,13 @@ final class BuzzerState {
         log.change("BuzzerState.finalAnswering", from: answeringWindow, to: window)
         answeringWindow = window
         answeringAnswers = window == .closed ? [:] : answers
-        await server?.setAnswering(window, answers: answers)
+        await room?.setAnswering(window, answers: answers)
     }
 
     /// Frees a team's slot and disconnects its phone with "Removed by host".
     func removePhone(forTeam teamID: UUID) async {
         log.state("Host removed the phone of \(teamLabel(teamID))", team: teamName(teamID))
-        await server?.removePhone(forTeam: teamID)
+        await room?.removePhone(forTeam: teamID)
     }
 
     // MARK: - Lifecycle
@@ -229,11 +226,13 @@ final class BuzzerState {
             AppLogger.buzzer.error("Buzzer server not started: couldn't build a URL for \(ip)")
             return
         }
-        let newServer = BuzzerServer(joinCode: code, port: port)
+        let newRoom = BuzzerRoom(joinCode: code, logger: AppBuzzerLogger())
+        let newServer = BuzzerServer(room: newRoom, port: port)
 
         do {
             try await newServer.start()
             self.server = newServer
+            self.room = newRoom
             self.joinCode = code
             self.serverURL = urls.join
             self.baseURL = urls.base
@@ -245,66 +244,18 @@ final class BuzzerState {
             )
             startPathMonitor()
 
-            await newServer.updateTeams(latestTeams)
-            await newServer.updateScores(latestScores)
-            await newServer.setBuzzerMode(latestMode)
+            await newRoom.updateTeams(latestTeams)
+            await newRoom.updateScores(latestScores)
+            await newRoom.setBuzzerMode(latestMode)
             if let limits = wageringLimits {
-                await newServer.openWagering(limits: limits, wagers: wageringWagers)
+                await newRoom.openWagering(limits: limits, wagers: wageringWagers)
             }
-            await newServer.setAnswering(answeringWindow, answers: answeringAnswers)
+            await newRoom.setAnswering(answeringWindow, answers: answeringAnswers)
 
-            wagerObserverTask = Task { [weak self, stream = newServer.wagerStream] in
-                for await submission in stream {
+            eventObserverTask = Task { [weak self, events = newRoom.events] in
+                for await event in events {
                     guard let self else { return }
-                    self.log.state("Final wager from phone: \(self.teamLabel(submission.teamID)) $\(submission.amount)", team: self.teamName(submission.teamID))
-                    self.wageringWagers[submission.teamID] = submission.amount
-                    self.onWagerSubmitted?(submission)
-                }
-            }
-
-            answerObserverTask = Task { [weak self, stream = newServer.answerStream] in
-                for await submission in stream {
-                    guard let self else { return }
-                    // Length only: Final answers are never logged.
-                    self.log.state(
-                        "Final answer from phone: \(self.teamLabel(submission.teamID)) (\(LogValue.length(of: submission.answer)))",
-                        team: self.teamName(submission.teamID)
-                    )
-                    self.answeringAnswers[submission.teamID] = submission.answer
-                    self.onAnswerSubmitted?(submission)
-                }
-            }
-
-            firstBuzzObserverTask = Task { [weak self, stream = newServer.firstBuzzStream] in
-                for await teamID in stream {
-                    guard let self else { return }
-                    self.firstBuzzTeamID = teamID
-                }
-            }
-
-            // Track which teams have a phone attached.
-            claimedObserverTask = Task { [weak self, stream = newServer.claimedTeamsStream] in
-                for await claimed in stream {
-                    guard let self else { return }
-                    self.claimedTeamIDs = claimed
-                    self.everClaimedTeamIDs.formUnion(claimed)
-                }
-            }
-
-            // Observe connected-client count changes from the server.
-            countObserverTask = Task { [weak self, stream = newServer.connectedCountStream] in
-                for await count in stream {
-                    guard let self else { return }
-                    self.connectedClientCount = count
-                }
-            }
-
-            // Surface listener failures that happen after startup.
-            failureObserverTask = Task { [weak self, stream = newServer.listenerFailureStream] in
-                for await message in stream {
-                    guard let self else { return }
-                    self.startError = message
-                    self.isRunning = false
+                    self.handle(event)
                 }
             }
         } catch {
@@ -316,21 +267,12 @@ final class BuzzerState {
     /// Stops the server and clears all state.
     func stopServer() async {
         stopPathMonitor()
-        countObserverTask?.cancel()
-        countObserverTask = nil
-        claimedObserverTask?.cancel()
-        claimedObserverTask = nil
-        failureObserverTask?.cancel()
-        failureObserverTask = nil
-        firstBuzzObserverTask?.cancel()
-        firstBuzzObserverTask = nil
-        wagerObserverTask?.cancel()
-        wagerObserverTask = nil
-        answerObserverTask?.cancel()
-        answerObserverTask = nil
+        eventObserverTask?.cancel()
+        eventObserverTask = nil
         firstBuzzTeamID = nil
         await server?.stop()
         server = nil
+        room = nil
         isRunning = false
         joinCode = ""
         serverURL = nil
@@ -343,7 +285,36 @@ final class BuzzerState {
 
     /// Broadcasts the current game phase to all connected phones.
     func broadcastPhase(_ phase: String) async {
-        await server?.broadcast(.state(phase: phase))
+        await room?.broadcast(.state(phase: phase))
+    }
+
+    /// Applies one thing the room reported.
+    private func handle(_ event: BuzzerRoomEvent) {
+        switch event {
+        case .claimedTeams(let claimed):
+            claimedTeamIDs = claimed
+            everClaimedTeamIDs.formUnion(claimed)
+        case .firstBuzz(let teamID):
+            firstBuzzTeamID = teamID
+        case .wager(let submission):
+            log.state("Final wager from phone: \(teamLabel(submission.teamID)) $\(submission.amount)", team: teamName(submission.teamID))
+            wageringWagers[submission.teamID] = submission.amount
+            onWagerSubmitted?(submission)
+        case .answer(let submission):
+            // Length only: Final answers are never logged.
+            log.state(
+                "Final answer from phone: \(teamLabel(submission.teamID)) (\(LogValue.length(of: submission.answer)))",
+                team: teamName(submission.teamID)
+            )
+            answeringAnswers[submission.teamID] = submission.answer
+            onAnswerSubmitted?(submission)
+        case .connectedCount(let count):
+            connectedClientCount = count
+        case .failed(let message):
+            // The listener failed after it started.
+            startError = message
+            isRunning = false
+        }
     }
 
     /// A team's name, for the log's team filter.
