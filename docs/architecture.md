@@ -186,9 +186,13 @@ Protocol: [buzzer-protocol.md](buzzer-protocol.md).
 
 ```
  MacpardyApp ──syncTeams / syncScores / setMode / openWagering / setAnswering──▶ BuzzerState (@Observable, main actor)
-      ▲                                                                │ owns both; game calls go to the room
+      ▲                                                                │ keeps the latest state; resync() after start
       │  onWagerSubmitted, onAnswerSubmitted, firstBuzzTeamID,         ▼
-      │  claimed/disconnected teams      ┌──────────────── BuzzerServer (actor, transport, default :8472)
+      │  claimed/disconnected teams                    BuzzerBackend (protocol): start → PIN + URLs + events, stop, commands
+      │                                                                │
+      │                                  EmbeddedBuzzerBackend (built-in): local IP, port setting, PIN, NWPathMonitor
+      │                                                                │ owns both
+      │                                  ┌──────────────── BuzzerServer (actor, transport, default :8472)
       │                                  │                   NWListener, HTTP, WebSocket handshake + frames
       │                                  │                   └─ ClientSession per connection (a BuzzerConnection)
       │                                  │ connect / receive(text:) / disconnect(reason:)      ▲ send / close
@@ -208,8 +212,16 @@ Protocol: [buzzer-protocol.md](buzzer-protocol.md).
   `startServer()` does nothing while `AppSettings.buzzersEnabled()` is off, and `MacpardyApp`
   starts / stops the server when the setting changes during a game. Stopping sends
   `sessionEnded` to joined phones first so they return to their Game PIN screen.
-  `BuzzerState` resolves the Mac's local IPv4 address and builds the bare page address
-  (`baseURL`, shown as text) and the join link with `?code=` (`serverURL`, QR code and Copy).
+- **Backends (#102):** `BuzzerState` doesn't know where the server runs. It talks to a
+  `BuzzerBackend`: `start()` returns a `BuzzerBackendSession` (Game PIN, bare page address
+  `baseURL` shown as text, join link with `?code=` for the QR code and Copy, and the
+  `BuzzerRoomEvent` stream), `stop()`, and one method per game command. `BuzzerState` keeps
+  the game's latest teams, scores, mode, Final wagering and answering, and after a start
+  replays them with `resync()` (a self-hosted server will reuse it when the Mac reconnects,
+  #104). `EmbeddedBuzzerBackend` is the built-in server: it picks the Mac's local IPv4
+  address, reads the port from Settings, generates the Game PIN, owns the `BuzzerRoom` and
+  `BuzzerServer`, and runs the `NWPathMonitor`. Start errors are `BuzzerBackendError`s whose
+  text becomes `startError`. Tests drive `BuzzerState` with `FakeBuzzerBackend`.
 - **Join screen (#83):** `BuzzerState.isJoinScreenOnDisplay` puts the setup screen's join
   panel (`PresentationView.buzzerJoinContent()`) over any later phase on the Display. It's UI
   state, never saved; `MacpardyApp` clears it on every phase change and `stopServer()` clears
@@ -241,7 +253,7 @@ Protocol: [buzzer-protocol.md](buzzer-protocol.md).
   hands the room each text message and reports why a connection ended. The value types
   (`BuzzerEngine`, `TeamClaimRegistry`, the books, `AttemptRateLimiter`,
   `WebSocketFrameParser`, the messages) are in the package too, all `public` and `Sendable`
-  with no `MainActor` isolation, tested with `swift test`. Next, #102 puts a `BuzzerBackend`
+  with no `MainActor` isolation, tested with `swift test`. #102 put a `BuzzerBackend`
   in front of the room so the app can also use a self-hosted server (#99).
 - Constants (default port, heartbeat, tie window, rate limits, protocol version) are in
   `BuzzerConstants`, in the package. `AppSettings.defaultBuzzerPort` reads the default port from
@@ -257,7 +269,7 @@ Protocol: [buzzer-protocol.md](buzzer-protocol.md).
   logs one line: team (or IP), a 4-character id from the connection UUID, connected time and
   reason (close code, `NWError`, seconds since the last pong, …). The room keeps each phone's
   User-Agent (`UserAgentSummary` shortens it) and the last team it held. A phone's `join` may carry `PhoneDisconnectReport` (`diag`), logged as a
-  "Phone report" line. While the server runs, `BuzzerState` runs an `NWPathMonitor` and logs
+  "Phone report" line. While the server runs, `EmbeddedBuzzerBackend` runs an `NWPathMonitor` and logs
   Mac network changes (`NetworkPathSummary`); `LocalNetworkInterfaces` picks the join IP and
   lists every candidate when none is usable.
 - The phone UI is a single self-contained page, `Resources/Buzzer/buzzer.html`, served from

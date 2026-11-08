@@ -73,7 +73,9 @@ Macpardy/
 │   │   ├── CSVBoardTemplate.swift    Downloadable template
 │   │   └── CSVImportDocuments.swift  FileDocuments for the template and JSON export
 │   └── Buzzer/                   Phone buzzer transport (see buzzer-protocol.md); the rules are BuzzerRoom in BuzzerCore
-│       ├── BuzzerState.swift         @Observable bridge between the app and the room / server
+│       ├── BuzzerState.swift         @Observable bridge between the app and the buzzer backend
+│       ├── BuzzerBackend.swift       Protocol for where the server runs; session (PIN, URLs, events), errors
+│       ├── EmbeddedBuzzerBackend.swift  The built-in backend: local IP, port, PIN, room + BuzzerServer
 │       ├── BuzzerServer.swift        actor: NWListener, HTTP, WebSocket handshake and frames
 │       ├── ClientSession.swift       One WebSocket: NWConnection, frame buffers, send() (a BuzzerConnection)
 │       ├── AppBuzzerLogger.swift     BuzzerCore's logging hook → AppLogger.buzzer
@@ -209,6 +211,7 @@ One `<Type>Tests.swift` per type under test:
 | `FinalAnswerGameStateTests` | Final Macpardy answers from phones, Display spotlight |
 | `DisconnectReasonTests` | Network.framework error text |
 | `AppBuzzerLoggerTests`, `BuzzerStateLoggingTests` | BuzzerCore lines reaching the app log; BuzzerState's state lines |
+| `BuzzerStateTests` (+ `FakeBuzzerBackend`) | BuzzerState through a fake backend: start / stop, PIN and URLs, resync, commands, room events |
 | `LocalNetworkInterfacesTests`, `BuzzerServerTests` | Join IP choice, network path text; the transport: headers, handshake, frames, and a real WebSocket join / reject / `sessionEnded` on localhost |
 | `LogRingBufferTests`, `LogFileStoreTests`, `LogFilterTests`, `LogExporterTests` | Live buffer, JSON Lines, retention, filters, export zip and system info |
 | `TestImages` | Helper for building image fixtures |

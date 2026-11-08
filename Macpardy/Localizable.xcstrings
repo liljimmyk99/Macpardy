@@ -807,6 +807,18 @@
         }
       }
     },
+    "control.buzzer.error.no_local_address" : {
+      "comment" : "Shown when the buzzer server can't start because the Mac has no usable local network address.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No local network address found. Connect to Wi-Fi or Ethernet."
+          }
+        }
+      }
+    },
     "control.buzzer.error.start_failed %lld %@" : {
       "comment" : "Shown when the buzzer server can't start. Arguments are the port and the system's reason.",
       "extractionState" : "manual",
