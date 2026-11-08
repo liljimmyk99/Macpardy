@@ -3,3 +3,6 @@
 /build/
 /Macpardy.xcodeproj/
 /Macpardy.xcworkspace/
+/Packages/*/.build/
+/Packages/*/.swiftpm/
+/Packages/*/Package.resolved

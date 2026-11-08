@@ -1,6 +1,6 @@
 //
 //  BuzzerMessage.swift
-//  Macpardy
+//  BuzzerCore
 //
 //  Versioned JSON message protocol for the buzzer WebSocket connection.
 //  All messages use a top-level `type` string field plus an optional `payload`.
@@ -14,16 +14,23 @@ import Foundation
 // MARK: - Server → Phone
 
 /// A team as shown in the phone's team picker.
-nonisolated struct BuzzerTeam: Encodable, Equatable {
-    let id: UUID
-    let name: String
-    let color: String
+public struct BuzzerTeam: Encodable, Equatable, Sendable {
+    public let id: UUID
+    public let name: String
+    public let color: String
     /// True while a phone holds the team; the phone disables its Join button.
-    let claimed: Bool
+    public let claimed: Bool
+
+    public init(id: UUID, name: String, color: String, claimed: Bool) {
+        self.id = id
+        self.name = name
+        self.color = color
+        self.claimed = claimed
+    }
 }
 
 /// Why a `claim` was refused.
-nonisolated enum ClaimRejectReason: String, Encodable {
+public enum ClaimRejectReason: String, Encodable, Sendable {
     case taken
     case invalidTeam
     case rateLimited
@@ -31,7 +38,7 @@ nonisolated enum ClaimRejectReason: String, Encodable {
 
 /// Why a `join` was refused. Sent as `code` so the phone doesn't have to match
 /// the English `reason` text.
-nonisolated enum JoinRejectReason: String, Encodable, CaseIterable {
+public enum JoinRejectReason: String, Encodable, CaseIterable, Sendable {
     /// The Game PIN doesn't match this session (wrong, or from a finished game).
     case invalidCode
     /// Too many wrong PINs from this address.
@@ -40,7 +47,7 @@ nonisolated enum JoinRejectReason: String, Encodable, CaseIterable {
     case unsupportedVersion
 
     /// Human-readable text sent as `reason`, for logs and older pages.
-    var message: String {
+    public var message: String {
         switch self {
         case .invalidCode: "Invalid join code"
         case .rateLimited: "Too many attempts. Try again shortly."
@@ -51,16 +58,22 @@ nonisolated enum JoinRejectReason: String, Encodable, CaseIterable {
 
 /// The answering team's response countdown. Phones count down locally from
 /// `remaining`; the server only sends start and stop events.
-nonisolated struct ResponseTimerInfo: Equatable {
-    let teamID: UUID
+public struct ResponseTimerInfo: Equatable, Sendable {
+    public let teamID: UUID
     /// Seconds left when the message was sent.
-    let remaining: TimeInterval
+    public let remaining: TimeInterval
     /// The full response time, in seconds.
-    let total: TimeInterval
+    public let total: TimeInterval
+
+    public init(teamID: UUID, remaining: TimeInterval, total: TimeInterval) {
+        self.teamID = teamID
+        self.remaining = remaining
+        self.total = total
+    }
 }
 
 /// Messages sent by the server to a connected phone client.
-nonisolated enum ServerMessage {
+public enum ServerMessage: Sendable {
     /// Sent after a valid join code is received. Carries the teams (with claim
     /// flags) so the phone can render its team picker.
     case joinAccepted(teams: [BuzzerTeam])
@@ -135,7 +148,7 @@ extension ServerMessage: Encodable {
         case type, payload
     }
 
-    func encode(to encoder: Encoder) throws {
+    public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         switch self {
         case .joinAccepted(let teams):
@@ -246,7 +259,7 @@ extension ServerMessage: Encodable {
 // MARK: - Phone → Server
 
 /// Messages sent by a phone client to the server.
-nonisolated enum ClientMessage {
+public enum ClientMessage: Sendable {
     /// First message a phone sends after the WebSocket connection opens.
     /// `version` must match `BuzzerConstants.protocolVersion`. `diag` is the
     /// phone's optional report on how its previous connection ended (v8).
@@ -276,7 +289,7 @@ nonisolated enum ClientMessage {
 }
 
 /// The page events a phone reports in `uiEvent` (v10). Anything else is ignored.
-nonisolated enum PhoneUIEvent: String, CaseIterable {
+public enum PhoneUIEvent: String, CaseIterable, Sendable {
     case pageVisible
     case pageHidden
     /// A tap on the buzzer while it can't be pressed.
@@ -287,7 +300,7 @@ nonisolated enum PhoneUIEvent: String, CaseIterable {
     case reconnecting
 
     /// How the Mac's log describes it.
-    var logDescription: String {
+    public var logDescription: String {
         switch self {
         case .pageVisible: "page visible"
         case .pageHidden: "page hidden"
@@ -305,7 +318,7 @@ extension ClientMessage: Decodable {
         case type, code, version, teamID, amount, answer, diag, device, event, at
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let type_ = try container.decode(String.self, forKey: .type)
         switch type_ {
@@ -347,7 +360,7 @@ extension ClientMessage: Decodable {
 extension ClientMessage {
     /// `id` if it's a usable device id: 1 to `maxDeviceIDLength` letters,
     /// digits or dashes.
-    static func validDeviceID(_ id: String) -> String? {
+    public static func validDeviceID(_ id: String) -> String? {
         guard (1...BuzzerConstants.maxDeviceIDLength).contains(id.count),
               id.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-") }) else { return nil }
         return id
@@ -358,7 +371,7 @@ extension ClientMessage {
 
 extension ServerMessage {
     /// Encodes the message to a UTF-8 JSON `Data` blob ready for transmission.
-    nonisolated func jsonData() throws -> Data {
+    public func jsonData() throws -> Data {
         try JSONEncoder().encode(self)
     }
 }

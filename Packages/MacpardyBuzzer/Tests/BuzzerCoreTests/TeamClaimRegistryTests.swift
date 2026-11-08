@@ -1,12 +1,11 @@
 //
 //  TeamClaimRegistryTests.swift
-//  MacpardyTests
+//  BuzzerCoreTests
 //
 
 import XCTest
-@testable import Macpardy
+@testable import BuzzerCore
 
-@MainActor
 final class TeamClaimRegistryTests: XCTestCase {
 
     private let teamA = UUID()

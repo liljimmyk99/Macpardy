@@ -1,3 +1,4 @@
+import BuzzerCore
 import SwiftUI
 
 extension ScoreControlsView {

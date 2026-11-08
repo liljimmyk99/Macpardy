@@ -42,6 +42,9 @@ xcodebuild test \
   -scheme Macpardy \
   -destination 'platform=macOS'
 
+# Buzzer core package tests (not part of the Xcode scheme)
+swift test --package-path Packages/MacpardyBuzzer
+
 # Release build + ad-hoc signed .app and .dmg (see EXPORTING.md)
 ./scripts/export.sh
 ```
@@ -56,9 +59,11 @@ the build or tests pass.
 
 ### Swift and concurrency
 - **Default actor isolation is `MainActor`** (`SWIFT_DEFAULT_ACTOR_ISOLATION`), with
-  approachable concurrency on. Pure logic that has to run off the main actor (parsers, the
-  buzzer engine, package reading) is marked `nonisolated`, as in `Services/Buzzer/*` and
-  `BoardPackage`. Follow the same pattern for new pure types.
+  approachable concurrency on. Pure logic that has to run off the main actor (parsers,
+  package reading) is marked `nonisolated`, as in `BoardPackage`. Follow the same pattern for
+  new pure types. The buzzer rules (the engine, books, messages) are in the `BuzzerCore`
+  package instead, which has no default isolation (see
+  [External buzzer server](#external-buzzer-server-in-progress-99)).
 - Shared observable state uses the Observation framework (`@Observable` classes passed with
   `.environment(...)`), not `ObservableObject`.
 - Long-lived I/O lives in `actor`s (`BuzzerServer`, `GameSaveStore`).
@@ -129,6 +134,8 @@ level, but saved and exported). See [`docs/architecture.md`](docs/architecture.m
 ### Tests
 - XCTest, in `MacpardyTests/`, one file per type under test (`<Type>Tests.swift`), classes
   marked `@MainActor`, `@testable import Macpardy`.
+- Tests for `BuzzerCore` live in `Packages/MacpardyBuzzer/Tests/BuzzerCoreTests/`
+  (`@testable import BuzzerCore`, no `@MainActor`) and run with `swift test`.
 - Add tests for any new parsing, validation, or game/buzzer rule. Inject time, randomness,
   and directories (see `BuzzTieResolver`'s `randomIndex`, `GameSaveStore(baseDirectory:)`)
   instead of depending on the real ones.

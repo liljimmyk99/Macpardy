@@ -1,12 +1,11 @@
 //
 //  FinalWagerBookTests.swift
-//  MacpardyTests
+//  BuzzerCoreTests
 //
 
 import XCTest
-@testable import Macpardy
+@testable import BuzzerCore
 
-@MainActor
 final class FinalWagerBookTests: XCTestCase {
 
     private let rich = UUID()

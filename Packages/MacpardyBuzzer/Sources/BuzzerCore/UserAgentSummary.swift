@@ -1,6 +1,6 @@
 //
 //  UserAgentSummary.swift
-//  Macpardy
+//  BuzzerCore
 //
 //  Shortens a phone browser's User-Agent header to "Safari 18 on iOS 18.1"
 //  for buzzer log lines (#81).
@@ -8,9 +8,9 @@
 
 import Foundation
 
-nonisolated enum UserAgentSummary {
+public enum UserAgentSummary: Sendable {
 
-    static func shorten(_ userAgent: String?) -> String {
+    public static func shorten(_ userAgent: String?) -> String {
         guard let userAgent, !userAgent.isEmpty else { return "unknown browser" }
         let browser = browser(in: userAgent) ?? "Unknown browser"
         guard let os = operatingSystem(in: userAgent) else { return browser }

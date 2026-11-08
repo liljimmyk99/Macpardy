@@ -10,11 +10,13 @@ how the pieces fit together.
 ├── AGENTS.md                 Guide for agents/contributors: build, conventions, workflow
 ├── README.md                 Short overview and quick start
 ├── EXPORTING.md              Building a shareable .app / .dmg
-├── Project.swift             Tuist manifest: targets, settings, Info.plist, ZIPFoundation
+├── Project.swift             Tuist manifest: targets, settings, Info.plist, packages
 ├── Config/
 │   └── Macpardy.entitlements    Sandbox, user-selected files, network server + client
 ├── Macpardy/                App target sources and resources
 ├── MacpardyTests/           Unit tests (XCTest)
+├── Packages/
+│   └── MacpardyBuzzer/        Local Swift package: the buzzer core (see below)
 ├── docs/                     Design and format docs
 ├── scripts/
 │   └── export.sh             Release build, ad-hoc signing, .dmg
@@ -22,7 +24,7 @@ how the pieces fit together.
 ```
 
 Generated and ignored: `Macpardy.xcodeproj`, `Macpardy.xcworkspace`, `Derived/`,
-`build/`, `derivedData/`.
+`build/`, `derivedData/`, and each package's `.build/` and `.swiftpm/`.
 
 ## `Macpardy/` (app target)
 
@@ -70,26 +72,15 @@ Macpardy/
 │   │   ├── CSVBoardImporter+Messages.swift  Localized issue text
 │   │   ├── CSVBoardTemplate.swift    Downloadable template
 │   │   └── CSVImportDocuments.swift  FileDocuments for the template and JSON export
-│   └── Buzzer/                   Phone buzzer server (see buzzer-protocol.md)
+│   └── Buzzer/                   Phone buzzer server (see buzzer-protocol.md); pure rules are in BuzzerCore
 │       ├── BuzzerState.swift         @Observable bridge between the app and the server
 │       ├── BuzzerServer.swift        actor: NWListener, HTTP + WebSocket, sessions, heartbeat
 │       ├── ClientSession.swift       One connection's state and send()
-│       ├── WebSocketFrameParser.swift  Frame decoding
-│       ├── BuzzerMessage.swift       ServerMessage / ClientMessage JSON
-│       ├── BuzzerEngine.swift        Armed / locked-out / answering rules
-│       ├── BuzzTieResolver.swift     Picks the winner of near-simultaneous buzzes
-│       ├── TeamClaimRegistry.swift   Which phone holds which team
-│       ├── FinalWagerBook.swift      Final Macpardy wager limits and submissions
-│       ├── FinalAnswerBook.swift     Final Macpardy answers typed on phones (open / locked)
-│       ├── AttemptRateLimiter.swift  Join-code / claim rate limiting
-│       ├── JoinCodeGenerator.swift   6-char codes without look-alike characters
+│       ├── AppBuzzerLogger.swift     BuzzerCore's logging hook → AppLogger.buzzer
 │       ├── QRCodeGenerator.swift     Join URL → QR image
-│       ├── DisconnectReason.swift    Why a phone was dropped; close codes; LogDuration
-│       ├── PhoneDisconnectReport.swift  The phone's `diag` report on its last connection
-│       ├── UserAgentSummary.swift    "Safari 18 on iOS 18.1" from a User-Agent
+│       ├── DisconnectReason.swift    Why a phone was dropped (Network.framework errors)
 │       ├── LocalNetworkInterfaces.swift  The Mac's IPv4 addresses; which one phones use
-│       ├── NetworkPathSummary.swift  "Wi-Fi (en0)" for Mac network-change lines
-│       └── BuzzerConstants.swift     Default port, timeouts, tie window, limits, protocol version
+│       └── NetworkPathSummary.swift  "Wi-Fi (en0)" for Mac network-change lines
 ├── Views/
 │   ├── LaunchScreenView/         Start screen: Play / New Board / Edit Board tiles, resume banner
 │   ├── BoardLoadErrorView.swift  Sheet listing problems with a file
@@ -152,6 +143,45 @@ SomeView/
 └── Models/                       (optional) view-specific value types, e.g. BoardDraft
 ```
 
+## `Packages/MacpardyBuzzer/` (buzzer core)
+
+A local Swift package (#99) the app depends on through `Project.swift`. `BuzzerCore` is
+Foundation-only so it can build on Linux for the self-hosted server: no `Network`,
+`AppKit`, `OSLog` or `CommonCrypto`. Its types are `public` and `Sendable`, and it doesn't
+use the app's default `MainActor` isolation. Files that use it `import BuzzerCore`.
+
+```
+Packages/MacpardyBuzzer/
+├── Package.swift                 BuzzerCore library + BuzzerCoreTests
+├── Sources/BuzzerCore/
+│   ├── BuzzerConstants.swift     Default port, timeouts, tie window, limits, protocol version
+│   ├── BuzzerMessage.swift       ServerMessage / ClientMessage JSON
+│   ├── BuzzerEngine.swift        Armed / locked-out / answering rules
+│   ├── BuzzTieResolver.swift     Picks the winner of near-simultaneous buzzes
+│   ├── TeamClaimRegistry.swift   Which phone holds which team
+│   ├── FinalWagerBook.swift      Final Macpardy wager limits and submissions
+│   ├── FinalAnswerBook.swift     Final Macpardy answers typed on phones (open / locked)
+│   ├── AttemptRateLimiter.swift  Join-code / claim rate limiting
+│   ├── JoinCodeGenerator.swift   6-char codes without look-alike characters
+│   ├── WebSocketFrameParser.swift  Frame decoding
+│   ├── WebSocketCloseCode.swift  Close status codes: read from a frame, describe
+│   ├── PhoneDisconnectReport.swift  The phone's `diag` report on its last connection
+│   ├── UserAgentSummary.swift    "Safari 18 on iOS 18.1" from a User-Agent
+│   ├── LogDuration.swift         "6.1s", "12m 3s" for log lines
+│   └── Logging/BuzzerLogging.swift  The logging hook package code logs through
+└── Tests/BuzzerCoreTests/        XCTest, run with `swift test`
+```
+
+| File | Covers |
+|---|---|
+| `BuzzerEngineTests`, `BuzzTieResolverTests` | Buzz rules and tie-breaking |
+| `TeamClaimRegistryTests`, `AttemptRateLimiterTests` | Team claims, rate limits |
+| `FinalWagerBookTests`, `FinalAnswerBookTests` | Final Macpardy wagers and answers |
+| `BuzzerProtocolTests`, `WebSocketFrameParserTests` | Wire messages and frames, `join` with / without / garbage `diag` |
+| `WebSocketCloseCodeTests`, `LogDurationTests` | Close codes, durations |
+| `PhoneDisconnectReportTests`, `UserAgentSummaryTests` | Phone reports, browser names |
+| `BuzzerLoggingTests` | The logging hook's helpers and `change` format |
+
 ## `MacpardyTests/`
 
 One `<Type>Tests.swift` per type under test:
@@ -166,12 +196,10 @@ One `<Type>Tests.swift` per type under test:
 | `QuestionImageAutoSaveTests` | Images embedded in auto-saves |
 | `SessionLifecycleTests` | Auto-save / resume / buzzer session lifecycle |
 | `GameStateEndGameTests` | Complete Game: back to setup, timers stopped, no more saves |
-| `BuzzerEngineTests`, `BuzzTieResolverTests` | Buzz rules and tie-breaking |
-| `TeamClaimRegistryTests`, `AttemptRateLimiterTests` | Team claims, rate limits |
-| `FinalWagerBookTests`, `FinalWagerDefaultsTests` | Final Macpardy wagers |
-| `FinalAnswerBookTests`, `FinalAnswerGameStateTests` | Final Macpardy answers from phones, Display spotlight |
-| `BuzzerProtocolTests`, `WebSocketFrameParserTests` | Wire messages and frames, `join` with / without / garbage `diag` |
-| `DisconnectReasonTests`, `PhoneDisconnectReportTests`, `UserAgentSummaryTests` | Disconnect reasons, close codes, durations, phone reports, browser names |
+| `FinalWagerDefaultsTests` | Final Macpardy wager defaults in the game |
+| `FinalAnswerGameStateTests` | Final Macpardy answers from phones, Display spotlight |
+| `DisconnectReasonTests` | Disconnect reasons and network errors |
+| `AppBuzzerLoggerTests`, `BuzzerStateLoggingTests` | BuzzerCore lines reaching the app log; BuzzerState's state lines |
 | `LocalNetworkInterfacesTests`, `BuzzerServerTests` | Join IP choice, network path text, HTTP header parsing |
 | `LogRingBufferTests`, `LogFileStoreTests`, `LogFilterTests`, `LogExporterTests` | Live buffer, JSON Lines, retention, filters, export zip and system info |
 | `TestImages` | Helper for building image fixtures |
@@ -194,9 +222,10 @@ One `<Type>Tests.swift` per type under test:
 | A new game rule or state | `GameState` (method) + `GameSnapshot` if it must survive a resume |
 | A new data field on boards | `Models/` + keep old files decoding + `board-format.md` |
 | Pure logic (parsing, rules) | `Services/`, `nonisolated`, with a test in `MacpardyTests/` |
+| Pure buzzer logic (no I/O) | `Packages/MacpardyBuzzer/Sources/BuzzerCore/`, `public` + `Sendable`, Foundation only, tested with `swift test` |
 | File or network I/O | An `actor` in `Services/` |
 | A host screen | `Views/Control/…` using the view folder pattern |
 | An audience screen | `Views/Display/PresentationView/Components/…` |
 | Something used by both | `Views/Shared/` |
-| Buzzer behaviour | `Services/Buzzer/` + `buzzer.html` + `buzzer-protocol.md` |
+| Buzzer behaviour | `BuzzerCore` (rules) or `Services/Buzzer/` (I/O) + `buzzer.html` + `buzzer-protocol.md` |
 | UI text | `Localizable.xcstrings` |

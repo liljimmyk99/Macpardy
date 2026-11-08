@@ -1,10 +1,10 @@
 //
 //  WebSocketFrameParserTests.swift
-//  MacpardyTests
+//  BuzzerCoreTests
 //
 
 import XCTest
-@testable import Macpardy
+@testable import BuzzerCore
 
 final class WebSocketFrameParserTests: XCTestCase {
 

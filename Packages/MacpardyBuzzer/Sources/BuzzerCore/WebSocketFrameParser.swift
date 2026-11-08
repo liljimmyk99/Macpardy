@@ -1,6 +1,6 @@
 //
 //  WebSocketFrameParser.swift
-//  Macpardy
+//  BuzzerCore
 //
 //  Incremental RFC 6455 frame parser. TCP may deliver a frame split across
 //  reads or several frames in one read, so callers append received bytes to a
@@ -9,16 +9,23 @@
 
 import Foundation
 
-nonisolated struct WebSocketFrame: Equatable {
-    let fin: Bool
-    let opcode: UInt8
+public struct WebSocketFrame: Equatable, Sendable {
+    public let fin: Bool
+    public let opcode: UInt8
     /// Unmasked payload.
-    let payload: Data
+    public let payload: Data
+
+
+    public init(fin: Bool, opcode: UInt8, payload: Data) {
+        self.fin = fin
+        self.opcode = opcode
+        self.payload = payload
+    }
 }
 
-nonisolated enum WebSocketFrameParser {
+public enum WebSocketFrameParser: Sendable {
 
-    enum Result: Equatable {
+    public enum Result: Equatable, Sendable {
         /// A complete frame and the number of buffer bytes it occupied.
         case frame(WebSocketFrame, consumed: Int)
         /// More bytes are needed.
@@ -28,9 +35,9 @@ nonisolated enum WebSocketFrameParser {
     }
 
     /// Largest payload accepted. Buzzer messages are tiny JSON objects.
-    static let maxPayload = 65_536
+    public static let maxPayload = 65_536
 
-    static func parse(_ data: Data) -> Result {
+    public static func parse(_ data: Data) -> Result {
         let bytes = [UInt8](data.prefix(14))
         guard bytes.count >= 2 else { return .incomplete }
 

@@ -7,6 +7,7 @@
 //  read is clamped so a bad stored value can't reach the game.
 //
 
+import BuzzerCore
 import Foundation
 
 nonisolated enum AppSettings {
@@ -115,7 +116,8 @@ nonisolated enum AppSettings {
     }
 
     static let portRange = 1024...65535
-    static let defaultBuzzerPort = 8472
+    /// The buzzer package owns the default port; Settings shows it as an `Int`.
+    static let defaultBuzzerPort = Int(BuzzerConstants.defaultPort)
 
     static func clampPort(_ value: Int) -> Int {
         min(max(value, portRange.lowerBound), portRange.upperBound)

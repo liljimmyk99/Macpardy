@@ -1,12 +1,11 @@
 //
 //  AttemptRateLimiterTests.swift
-//  MacpardyTests
+//  BuzzerCoreTests
 //
 
 import XCTest
-@testable import Macpardy
+@testable import BuzzerCore
 
-@MainActor
 final class AttemptRateLimiterTests: XCTestCase {
 
     private let start = Date(timeIntervalSince1970: 1_000)

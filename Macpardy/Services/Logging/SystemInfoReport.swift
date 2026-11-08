@@ -6,6 +6,7 @@
 //  buzzer server's state when the logs were exported.
 //
 
+import BuzzerCore
 import Darwin
 import Foundation
 
