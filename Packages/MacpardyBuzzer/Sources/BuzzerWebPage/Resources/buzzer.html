@@ -330,7 +330,10 @@
   const PROTOCOL_VERSION = 10;
   const WATCHDOG_MS      = 5_000;   // server pings every 2s; silence this long = lost (only while visible)
   const PIN_LENGTH       = 6;
-  const WS_URL           = `ws://${location.hostname}:${location.port}/ws`;
+  // Same host and port as the page; `wss:` when the page came over HTTPS (a
+  // self-hosted server behind a reverse proxy, #103).
+  const WS_SCHEME        = location.protocol === "https:" ? "wss:" : "ws:";
+  const WS_URL           = `${WS_SCHEME}//${location.host}/ws`;
 
   // ─── State ───────────────────────────────────────────────────────────────
   // The Game PIN is the server's join code. It comes from `?code=` (QR code) or
@@ -1065,6 +1068,9 @@
         return;
       case "unsupportedVersion":
         showPin({ value: pin, error: "This page is out of date. Reload it." });
+        return;
+      case "roomFull":
+        showPin({ value: pin, error: "This game is full. Ask the host to remove a phone." });
         return;
     }
 

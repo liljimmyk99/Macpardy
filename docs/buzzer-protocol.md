@@ -197,7 +197,9 @@ own (see [Game PIN screen](#game-pin-screen)).
 
 Wrong codes are rate limited per remote address (default: more than 5 in 60 s
 locks the address out for 30 s). While locked out, even the correct code is
-rejected.
+rejected. On a [self-hosted server](#self-hosted-server) the limit is per address across
+every room on the server, and the address is the phone's (from `X-Forwarded-For`) when the
+server runs behind a trusted reverse proxy.
 
 ```json
 {
@@ -219,6 +221,7 @@ rejected.
 | `invalidCode`        | The code doesn't match this session (wrong, or from a finished game). |
 | `rateLimited`        | Too many wrong codes from this address.                        |
 | `unsupportedVersion` | The page speaks another protocol version (an old open page).   |
+| `roomFull`           | Self-hosted server only: the game already has its most phones (`MACPARDY_MAX_PHONES_PER_ROOM`). |
 
 ---
 
@@ -342,7 +345,9 @@ nw_connection_create_from_protocol_on_nw_queue [C33] Failed to create connection
 ```
 
 These connections never appear in `netstat`, so the only sign is phones timing out. The app
-doesn't open outgoing connections; `network.client` is there only for this.
+doesn't open outgoing connections; `network.client` is there only for this. The one planned
+exception is connecting to a [self-hosted server](#self-hosted-server) (#104), only while
+the external server is turned on in Settings > Buzzers; it needs no new entitlement.
 macOS Local Network privacy doesn't apply here: accepting incoming TCP connections doesn't
 require it, so no permission prompt appears.
 
@@ -398,6 +403,8 @@ The "Game PIN" players see is the server's 6-character join code.
 | `invalidCode`, PIN never accepted on this page | "Wrong Game PIN. Check the screen and try again." | Kept |
 | `invalidCode`, PIN accepted earlier on this page, or it came from `?code=` | "That game has ended or the PIN changed. Enter the Game PIN shown on screen." | Cleared, `?code=` removed |
 | `rateLimited` | "Too many attempts. Try again shortly." | Kept |
+| `unsupportedVersion` | "This page is out of date. Reload it." | Kept |
+| `roomFull` | "This game is full. Ask the host to remove a phone." | Kept |
 | `unsupportedVersion` | "This page is out of date. Reload it." | Kept |
 
 ## Connection-lost behaviour
@@ -615,6 +622,10 @@ Final answering is over (the host left the Final); the phone returns to the buzz
 | 9       | Issue #84. `join` may carry `device`; a rejoining phone gets its team back. Heartbeat TTL 5 s → 60 s (join TTL stays 5 s). The page's watchdog ignores time hidden, and the page rejoins once on its own after a lost connection. |
 | 10      | Issue #87. Adds `uiEvent`. The server still accepts v9 pages, which only lack it. |
 
+Changes without a version bump: `joinRejected.code` may be `roomFull` (#103, self-hosted
+server only; older pages show "Wrong Game PIN"), and the page opens its WebSocket on its own
+host and port with `wss:` when it was loaded over `https:` (#103).
+
 ## Troubleshooting disconnects
 
 Open **Help > Show Logs** (⌥⌘L) or **View Logs** in the Buzzers popover; the window opens on
@@ -664,6 +675,135 @@ Samsung Internet) loads the page fine.
 Fix on the phone: **Settings › Apps › Chrome › Permissions**, allow **Nearby devices** (named
 **Local network** on some Android versions), then reopen Chrome. Nothing on the Mac side
 changes this. The setup panel on Control and the Display join panel both show this tip.
+
+## Self-hosted server
+
+Since #103 the same page and phone protocol can also run on a self-hosted server: the
+`macpardy-buzzer-server` executable in `Packages/MacpardyBuzzer`, shipped as a Docker image
+behind a reverse proxy that handles HTTPS. Phones on other networks reach it over the
+internet; the Mac connects to it as the game's **host** over the [host protocol](#host-protocol--v1).
+Setup is in [`Packages/MacpardyBuzzer/README.md`](../Packages/MacpardyBuzzer/README.md).
+
+| Path | What |
+|------|------|
+| `GET /`, `/index.html` | `buzzer.html`, the same page the built-in server serves |
+| `GET /healthz` | `200 ok` while the server runs (Docker health check) |
+| WebSocket `/ws` | Phones, speaking this protocol unchanged |
+| WebSocket `/host` | The Mac, speaking the host protocol |
+
+What phones see differently:
+- The page is served over `https:`, so it connects with `wss://<host>/ws`.
+- **Rooms.** One server runs several games. Each Mac that opens a room gets a Game PIN no
+  other room is using; a phone's `join` goes to the room its `code` names. A PIN no room
+  has gets `joinRejected` `invalidCode`, as on the built-in server.
+- **Limits.** `MACPARDY_MAX_ROOMS` rooms, `MACPARDY_MAX_PHONES_PER_ROOM` phones per room
+  (beyond it: `joinRejected` `roomFull`), and `MACPARDY_MAX_PENDING_PHONES` sockets that
+  haven't joined yet (beyond it the socket is closed straight away). Sockets that don't send
+  a valid `join` within 5 s are closed, as on the built-in server.
+- **Host away.** When the Mac's connection drops (or it stops answering pings for 20 s),
+  every phone gets `buzzerState` `unavailable` and buzzes are ignored, but the game is kept:
+  claims, wagers, answers and the buzzer state underneath. Phones can still submit Final
+  wagers and answers; the Mac gets them when it comes back. If the Mac resumes within the
+  grace period (`MACPARDY_GRACE_PERIOD`, 30–60 s, default 45), each phone gets its real
+  `buzzerState` again. Otherwise every phone gets `sessionEnded` and the room is removed.
+
+The server logs to stdout with the app's content rules: no clue text, answer text, Final
+answers, Game PINs it was given, or host token.
+
+## Host protocol — v1
+
+The Mac ↔ self-hosted server channel (#103), on the WebSocket path `/host`. It has its own
+version (`BuzzerHostConstants.hostProtocolVersion`), separate from the phone protocol, since
+the app and the server are released separately. Types are in the `BuzzerHostProtocol`
+target (`HostCommand`, `HostEvent`).
+
+Same wire format as the phone protocol: `{ "type": "…", "payload": { … } }`, `payload`
+omitted when empty, unknown types refused. Maps keyed by team are JSON objects keyed by the
+team's UUID string. The host token only travels over `wss://`; the server never logs it.
+
+### Opening and resuming a room
+
+The Mac's first message must be `hello`, within 10 s:
+
+```json
+{ "type": "hello", "payload": { "token": "…", "version": 1, "resumeToken": "…", "client": "0.6.0" } }
+```
+
+| Field | Description |
+|-------|-------------|
+| `token` | The host token configured on the server. Compared in constant time. |
+| `version` | The host protocol version the Mac speaks. |
+| `resumeToken` | Optional. From an earlier `roomOpened`, to take that room back after a drop. |
+| `client` | Optional. The app's version, for the server's log. |
+
+Without `resumeToken` the server opens a new room and answers `roomOpened`:
+
+```json
+{ "type": "roomOpened", "payload": { "code": "AB3XYZ", "resumeToken": "9f…", "resumed": false,
+  "gracePeriod": 45, "hostProtocolVersion": 1, "publicURL": "https://macpardy.duckdns.org" } }
+```
+
+The Mac shows `code` as the Game PIN and builds the join link from the server URL the host
+entered (`https://<server>/?code=<PIN>`); `publicURL` is informational. It keeps
+`resumeToken` (a secret, never logged) for reconnecting.
+
+With `resumeToken` the Mac takes back its room, keeping the same PIN and phones. The server
+first sends the room's latest state (`claimedTeams`, `connectedCount`, `firstBuzz`) and every
+`wager` and `answer` phones sent while the Mac was away, **then** `roomOpened` with
+`"resumed": true`. The Mac resyncs on `roomOpened` (resends teams, scores, mode, timer,
+wagering and answering, as after starting a room), so by then it already has everything
+phones sent. A `hello` with the resume token also replaces a half-open older connection of
+the same room.
+
+### Host → server
+
+| `type` | `payload` | As `BuzzerBackend` |
+|--------|-----------|--------------------|
+| `hello` | see above | — |
+| `pong` | — | Answer to `ping` |
+| `closeRoom` | — | `stop()`: phones get `sessionEnded`, the server sends `roomClosed` and forgets the room |
+| `updateTeams` | `{ "teams": [{ "id", "name", "color", "claimed" }] }` | `updateTeams` |
+| `updateScores` | `{ "scores": { "<team>": 400 } }` | `updateScores` |
+| `setBuzzerMode` | `{ "mode": "disabled" \| "unavailable" \| "armed" }` | `setBuzzerMode` |
+| `markWrong` | `{ "teamID" }` | `markWrong` |
+| `markCorrect` | — | `markCorrect` |
+| `setResponseTimer` | `{ "teamID": "…" or null, "seconds": 5 }` | `setResponseTimer` |
+| `openWagering` | `{ "limits": { "<team>": 1000 }, "wagers": { "<team>": 200 } }` | `openWagering` |
+| `closeWagering` | — | `closeWagering` |
+| `setWager` | `{ "teamID", "amount": 300 or null }` | `setWager` |
+| `setAnswering` | `{ "window": "closed" \| "open" \| "locked", "answers": { "<team>": "…" } }` | `setAnswering` |
+| `removePhone` | `{ "teamID" }` | `removePhone` |
+| `broadcastPhase` | `{ "phase": "board" }` | `broadcastPhase` |
+
+### Server → host
+
+| `type` | `payload` | Meaning |
+|--------|-----------|---------|
+| `roomOpened` | see above | The room is open or taken back |
+| `roomClosed` | `{ "reason": "hostClosed" \| "serverStopping" }` | The room is gone; the connection closes |
+| `ping` | — | Every 5 s; answer `pong`. No `pong` for 20 s counts as a drop |
+| `claimedTeams` | `{ "teamIDs": [] }` | `BuzzerRoomEvent.claimedTeams` |
+| `firstBuzz` | `{ "teamID": "…" or null }` | `BuzzerRoomEvent.firstBuzz` |
+| `wager` | `{ "teamID", "amount" }` | `BuzzerRoomEvent.wager` |
+| `answer` | `{ "teamID", "answer" }` | `BuzzerRoomEvent.answer` |
+| `connectedCount` | `{ "count" }` | `BuzzerRoomEvent.connectedCount` |
+| `error` | `{ "code", "message", "minimumVersion"?, "maximumVersion"? }` | See below |
+
+| Error `code` | Meaning | Connection |
+|--------------|---------|------------|
+| `badToken` | Missing or wrong host token | Closed |
+| `rateLimited` | More than 5 wrong tokens from this address in 60 s; locked out for 5 min, even with the right token | Closed |
+| `unsupportedVersion` | `version` isn't supported; the server accepts `minimumVersion`…`maximumVersion` | Closed |
+| `serverFull` | The server already has `MACPARDY_MAX_ROOMS` rooms | Closed |
+| `roomNotFound` | No room for that `resumeToken` (wrong, or its grace period ended). Open a new room with a fresh `hello` on a new connection | Closed |
+| `helloRequired` | The first message wasn't `hello`, `hello` came twice, or none came within 10 s | Closed |
+| `badMessage` | A later message couldn't be decoded; it was ignored | Open |
+
+### Host versions
+
+| Version | Changes |
+|---------|---------|
+| 1 | Issue #103. First version. |
 
 ## Port
 

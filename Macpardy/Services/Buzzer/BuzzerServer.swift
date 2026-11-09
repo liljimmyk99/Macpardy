@@ -10,7 +10,7 @@
 //  Responsibilities
 //  ─────────────────
 //  • Listens on the configured port (default BuzzerConstants.defaultPort) for incoming TCP connections
-//  • Serves buzzer.html (bundled resource) for plain HTTP GET / requests
+//  • Serves buzzer.html (from the BuzzerWebPage package) for plain HTTP GET / requests
 //  • Handles WebSocket connections (manual RFC 6455 framing over plain TCP)
 //  • Maps Network.framework errors and bad frames to a `DisconnectReason`
 //  • Keeps App Nap and idle sleep off while running, so pings stay on time
@@ -18,6 +18,7 @@
 //
 
 import BuzzerCore
+import BuzzerWebPage
 import CommonCrypto
 import Foundation
 import Network
@@ -55,19 +56,12 @@ actor BuzzerServer {
         self.room = room
         self.port = port
 
-        // Load the bundled web page once at init time.
-        let bundledPageURL = Bundle.main.url(
-            forResource: "buzzer",
-            withExtension: "html",
-            subdirectory: "Buzzer"
-        ) ?? Bundle.main.url(forResource: "buzzer", withExtension: "html")
-
-        if let url = bundledPageURL,
-           let data = try? Data(contentsOf: url) {
-            self.buzzerHTML = data
+        // The page lives in the buzzer package, shared with the self-hosted server (#103).
+        if let html = BuzzerWebPage.html {
+            self.buzzerHTML = html
         } else {
-            AppLogger.buzzer.error("buzzer.html not found in bundle — clients will receive a 404")
-            self.buzzerHTML = Data("<h1>Buzzer page not found</h1>".utf8)
+            AppLogger.buzzer.error("buzzer.html not found in the BuzzerWebPage bundle — phones will get an error page")
+            self.buzzerHTML = BuzzerWebPage.missingPage
         }
     }
 

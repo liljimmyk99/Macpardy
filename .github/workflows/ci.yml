@@ -50,3 +50,35 @@ jobs:
           name: Macpardy-dmg
           path: build/exports/Macpardy.dmg
           retention-days: 14
+
+  # The buzzer package on Linux, where the self-hosted server runs (#103), and its image.
+  buzzer-server-linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container: swift:6.2-noble
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test buzzer package
+        run: swift test --package-path Packages/MacpardyBuzzer
+
+  buzzer-server-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22   # global WebSocket, for the smoke test
+
+      - name: Build image
+        run: docker build -t macpardy-buzzer-server Packages/MacpardyBuzzer
+
+      - name: Smoke test
+        run: |
+          token="$(openssl rand -hex 24)"
+          docker run -d --name buzzer -p 8472:8472 -e MACPARDY_HOST_TOKEN="$token" macpardy-buzzer-server
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8472/healthz && break; sleep 1; done
+          node Packages/MacpardyBuzzer/scripts/smoke-test.mjs http://127.0.0.1:8472 "$token"
+          docker logs buzzer

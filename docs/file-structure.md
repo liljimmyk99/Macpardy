@@ -16,7 +16,7 @@ how the pieces fit together.
 ├── Macpardy/                App target sources and resources
 ├── MacpardyTests/           Unit tests (XCTest)
 ├── Packages/
-│   └── MacpardyBuzzer/        Local Swift package: the buzzer core (see below)
+│   └── MacpardyBuzzer/        Local Swift package: the buzzer core, page and self-hosted server (see below)
 ├── docs/                     Design and format docs
 ├── scripts/
 │   └── export.sh             Release build, ad-hoc signing, .dmg
@@ -105,7 +105,6 @@ Macpardy/
 │   └── Shared/                   Theme, buttons, headers, image placeholder, WindowCloseGuard
 │       └── Logging/              LoggedButton, .logPresentation, .logCommit, UIActionLog (#87)
 ├── Resources/
-│   ├── Buzzer/buzzer.html        Phone buzzer page (HTML + CSS + JS in one file)
 │   └── Games/*.json              Built-in games (board format; bundled as a folder)
 ├── Assets.xcassets               App icon, accent color, Theme/ and Team/ color sets
 └── Localizable.xcstrings         All UI strings (String Catalog)
@@ -145,16 +144,36 @@ SomeView/
 └── Models/                       (optional) view-specific value types, e.g. BoardDraft
 ```
 
-## `Packages/MacpardyBuzzer/` (buzzer core)
+## `Packages/MacpardyBuzzer/` (buzzer core and self-hosted server)
 
-A local Swift package (#99) the app depends on through `Project.swift`. `BuzzerCore` is
-Foundation-only so it can build on Linux for the self-hosted server: no `Network`,
-`AppKit`, `OSLog` or `CommonCrypto`. Its types are `public` and `Sendable`, and it doesn't
-use the app's default `MainActor` isolation. Files that use it `import BuzzerCore`.
+A local Swift package (#99) the app depends on through `Project.swift` (products
+`BuzzerCore` and `BuzzerWebPage`). `BuzzerCore`, `BuzzerHostProtocol` and `BuzzerHub` are
+Foundation-only so they build on Linux: no `Network`, `AppKit`, `OSLog` or `CommonCrypto`.
+Their types are `public` and `Sendable`, and they don't use the app's default `MainActor`
+isolation. Only the self-hosted server's transport (`BuzzerServerNIO`) uses SwiftNIO; the
+app doesn't link it. `Package.resolved` is committed so Docker images are reproducible.
 
 ```
 Packages/MacpardyBuzzer/
-├── Package.swift                 BuzzerCore library + BuzzerCoreTests
+├── Package.swift                 Libraries, the server executable, tests
+├── Dockerfile                    Multi-stage image for macpardy-buzzer-server (#103)
+├── docker-compose.yml            The server behind Caddy (HTTPS, Let's Encrypt), optional DuckDNS
+├── deploy/Caddyfile              Reverse proxy config for the compose file
+├── README.md                     Self-hosting guide
+├── scripts/smoke-test.mjs        End-to-end check of a running server (Node 22+)
+├── Sources/BuzzerWebPage/        buzzer.html (phone page, HTML + CSS + JS in one file) and
+│                                 BuzzerWebPage.html to read it; served by both servers
+├── Sources/BuzzerHostProtocol/   Mac ↔ self-hosted server messages: HostCommand, HostEvent,
+│                                 BuzzerHostConstants (version, paths, timings)
+├── Sources/BuzzerHub/            The self-hosted server's logic, no I/O
+│   ├── BuzzerHub.swift           actor: rooms by PIN, host auth, grace period and resume,
+│   │                             phone routing, limits, server-wide rate limits
+│   ├── ServerConfiguration.swift  Flags and MACPARDY_* environment variables
+│   ├── ForwardedFor.swift        Client address behind a trusted reverse proxy
+│   ├── SecureToken.swift         Resume tokens; constant-time token comparison
+│   └── StreamBuzzerLogger.swift  Log lines to stdout
+├── Sources/BuzzerServerNIO/      SwiftNIO transport: HTTP, /ws and /host WebSockets, health check
+├── Sources/MacpardyBuzzerServer/main.swift  The `macpardy-buzzer-server` executable
 ├── Sources/BuzzerCore/
 │   ├── Room/
 │   │   ├── BuzzerRoom.swift      actor: one game's phones and rules (join, claims, heartbeat,
@@ -178,7 +197,11 @@ Packages/MacpardyBuzzer/
 │   ├── UserAgentSummary.swift    "Safari 18 on iOS 18.1" from a User-Agent
 │   ├── LogDuration.swift         "6.1s", "12m 3s" for log lines
 │   └── Logging/BuzzerLogging.swift  The logging hook package code logs through
-└── Tests/BuzzerCoreTests/        XCTest, run with `swift test`
+└── Tests/                        XCTest, run with `swift test` (also on Linux in CI)
+    ├── BuzzerCoreTests/
+    ├── BuzzerHostProtocolTests/
+    ├── BuzzerHubTests/           Fake connections + test clock (Support/HubTestDoubles.swift)
+    └── BuzzerServerNIOTests/     Real sockets on localhost with raw HTTP/WebSocket clients
 ```
 
 | File | Covers |
@@ -239,5 +262,6 @@ One `<Type>Tests.swift` per type under test:
 | A host screen | `Views/Control/…` using the view folder pattern |
 | An audience screen | `Views/Display/PresentationView/Components/…` |
 | Something used by both | `Views/Shared/` |
-| Buzzer behaviour | `BuzzerRoom` / `BuzzerCore` (rules) or `Services/Buzzer/` (transport) + `buzzer.html` + `buzzer-protocol.md` |
+| Buzzer behaviour | `BuzzerRoom` / `BuzzerCore` (rules) or `Services/Buzzer/` (transport) + `Packages/MacpardyBuzzer/Sources/BuzzerWebPage/Resources/buzzer.html` + `buzzer-protocol.md` |
+| Self-hosted server | `BuzzerHub` (rooms, host protocol), `BuzzerServerNIO` (transport), `BuzzerHostProtocol` (messages), Docker files in the package root |
 | UI text | `Localizable.xcstrings` |
