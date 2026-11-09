@@ -210,6 +210,9 @@ While this is in progress:
 - Tests for code that moves into the package move with it and run with `swift test`.
 - Keep `BuzzerState`'s public API stable, so views don't change while the backend changes
   under them.
+- `BuzzerState` reaches the server only through `BuzzerBackend` (#102); the built-in server is
+  `EmbeddedBuzzerBackend`. New game commands go on the protocol, and any state a fresh server
+  needs goes in `BuzzerState.resync()`. Test `BuzzerState` with `FakeBuzzerBackend`.
 
 ## Workflow
 

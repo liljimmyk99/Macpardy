@@ -2,13 +2,12 @@
 //  BuzzerState.swift
 //  Macpardy
 //
-//  @Observable bridge between the buzzer room (and its server) and SwiftUI views.
+//  @Observable bridge between the buzzer backend (#102) and SwiftUI views.
 //  Inject this into the environment via MacpardyApp.
 //
 
 import BuzzerCore
 import Foundation
-import Network
 
 @Observable
 final class BuzzerState {
@@ -85,35 +84,40 @@ final class BuzzerState {
 
     private let log = AppLogger.buzzer
 
+    /// Where the server runs. Today always the built-in one (#102).
+    private let backend: any BuzzerBackend
+    private let defaults: UserDefaults
+
+    // The game's latest buzzer state, replayed into the backend by `resync()`.
     private var wageringLimits: [UUID: Int]?
     private var wageringWagers: [UUID: Int] = [:]
     private var answeringWindow: FinalAnswerWindow = .closed
     private var answeringAnswers: [UUID: String] = [:]
-
     private var latestScores: [UUID: Int] = [:]
     private var latestMode: BuzzerMode = .disabled
-    private var everClaimedTeamIDs: Set<UUID> = []
     private var latestTeams: [BuzzerTeam] = []
-    private var server: BuzzerServer?
-    /// The running server's room, which the game calls below go to.
-    private var room: BuzzerRoom?
+
+    private var everClaimedTeamIDs: Set<UUID> = []
     private var eventObserverTask: Task<Void, Never>?
-    private var pathMonitor: NWPathMonitor?
-    private var lastPathDescription: String?
+
+    init(backend: any BuzzerBackend = EmbeddedBuzzerBackend(), defaults: UserDefaults = .standard) {
+        self.backend = backend
+        self.defaults = defaults
+    }
 
     // MARK: - Teams
 
-    /// Pushes the app's current teams to the server (and remembers them for a
+    /// Pushes the app's current teams to the phones (and remembers them for a
     /// server that has not started yet).
     func syncTeams(_ teams: [BuzzerTeam]) async {
         latestTeams = teams
-        await room?.updateTeams(teams)
+        await backend.updateTeams(teams)
     }
 
     /// Pushes team scores to the server; they break ties between simultaneous buzzes.
     func syncScores(_ scores: [UUID: Int]) async {
         latestScores = scores
-        await room?.updateScores(scores)
+        await backend.updateScores(scores)
     }
 
     // MARK: - Buzzer control
@@ -122,18 +126,18 @@ final class BuzzerState {
     func setMode(_ mode: BuzzerMode) async {
         log.change("BuzzerState.mode", from: latestMode, to: mode)
         latestMode = mode
-        await room?.setBuzzerMode(mode)
+        await backend.setBuzzerMode(mode)
     }
 
     /// Locks the team out for the question and re-arms the other teams.
     func teamAnsweredWrong(_ teamID: UUID) async {
         log.state("Buzzer lockout: \(teamLabel(teamID)) answered wrong; other teams re-armed", team: teamName(teamID))
-        await room?.markWrong(teamID: teamID)
+        await backend.markWrong(teamID: teamID)
     }
 
     func teamAnsweredCorrect() async {
         log.state("Buzzers stopped: correct answer")
-        await room?.markCorrect()
+        await backend.markCorrect()
     }
 
     /// Starts the answering team's response countdown on every phone, or stops
@@ -144,7 +148,7 @@ final class BuzzerState {
         } else {
             log.state("Phones' response countdown stopped")
         }
-        await room?.setResponseTimer(teamID: teamID, seconds: seconds)
+        await backend.setResponseTimer(teamID: teamID, seconds: seconds)
     }
 
     // MARK: - Final Macpardy wagers
@@ -158,21 +162,21 @@ final class BuzzerState {
         }
         wageringLimits = limits
         wageringWagers = wagers
-        await room?.openWagering(limits: limits, wagers: wagers)
+        await backend.openWagering(limits: limits, wagers: wagers)
     }
 
     func closeWagering() async {
         if wageringLimits != nil { log.state("Final wagering closed on phones") }
         wageringLimits = nil
         wageringWagers = [:]
-        await room?.closeWagering()
+        await backend.closeWagering()
     }
 
     /// Pushes a wager the host entered or edited (nil = cleared) to the team's phone.
     func hostSetWager(teamID: UUID, amount: Int?) async {
         log.change("\(teamLabel(teamID)) phone wager (host)", from: wageringWagers[teamID], to: amount, team: teamName(teamID))
         wageringWagers[teamID] = amount
-        await room?.setWager(teamID: teamID, amount: amount)
+        await backend.setWager(teamID: teamID, amount: amount)
     }
 
     // MARK: - Final Macpardy answers
@@ -183,18 +187,18 @@ final class BuzzerState {
         log.change("BuzzerState.finalAnswering", from: answeringWindow, to: window)
         answeringWindow = window
         answeringAnswers = window == .closed ? [:] : answers
-        await room?.setAnswering(window, answers: answers)
+        await backend.setAnswering(window, answers: answers)
     }
 
     /// Frees a team's slot and disconnects its phone with "Removed by host".
     func removePhone(forTeam teamID: UUID) async {
         log.state("Host removed the phone of \(teamLabel(teamID))", team: teamName(teamID))
-        await room?.removePhone(forTeam: teamID)
+        await backend.removePhone(forTeam: teamID)
     }
 
     // MARK: - Lifecycle
 
-    /// Generates a new join code, resolves the local IP, and starts the server.
+    /// Starts a new session on the backend (new Game PIN), then resyncs it.
     /// Safe to call from a `Task { }` in a `.task` or `.onChange` modifier.
     /// Does nothing (beyond stopping a running server) while buzzers are
     /// turned off in Settings.
@@ -204,75 +208,41 @@ final class BuzzerState {
 
         startError = nil
 
-        guard AppSettings.buzzersEnabled() else {
-            AppLogger.buzzer.info("Buzzer server not started: buzzers are turned off in Settings")
+        guard AppSettings.buzzersEnabled(defaults) else {
+            log.info("Buzzer server not started: buzzers are turned off in Settings")
             return
         }
 
-        // Resolve local IP before starting so the URL is ready immediately.
-        let addresses = LocalNetworkInterfaces.current()
-        guard let address = LocalNetworkInterfaces.preferred(from: addresses) else {
-            startError = "No local network address found. Connect to Wi-Fi or Ethernet."
-            let candidates = addresses.isEmpty ? "none" : addresses.map(\.description).joined(separator: ", ")
-            AppLogger.network.error("Buzzer server not started: no usable local IPv4 address. Interfaces: \(candidates)")
-            return
-        }
-        let ip = address.ip
-
-        let code = JoinCodeGenerator.generate()
-        let port = AppSettings.buzzerPort()
-        guard let urls = Self.joinURLs(ip: ip, port: port, code: code) else {
-            startError = "No local network address found. Connect to Wi-Fi or Ethernet."
-            AppLogger.buzzer.error("Buzzer server not started: couldn't build a URL for \(ip)")
-            return
-        }
-        let newRoom = BuzzerRoom(joinCode: code, logger: AppBuzzerLogger())
-        let newServer = BuzzerServer(room: newRoom, port: port)
-
+        let session: BuzzerBackendSession
         do {
-            try await newServer.start()
-            self.server = newServer
-            self.room = newRoom
-            self.joinCode = code
-            self.serverURL = urls.join
-            self.baseURL = urls.base
-            self.isRunning = true
-            let others = addresses.filter { $0 != address }.map(\.description)
-            AppLogger.buzzer.info(
-                "Buzzer server started at \(urls.base.absoluteString) on \(address.interface)"
-                    + (others.isEmpty ? "" : " (other interfaces: \(others.joined(separator: ", ")))")
-            )
-            startPathMonitor()
-
-            await newRoom.updateTeams(latestTeams)
-            await newRoom.updateScores(latestScores)
-            await newRoom.setBuzzerMode(latestMode)
-            if let limits = wageringLimits {
-                await newRoom.openWagering(limits: limits, wagers: wageringWagers)
-            }
-            await newRoom.setAnswering(answeringWindow, answers: answeringAnswers)
-
-            eventObserverTask = Task { [weak self, events = newRoom.events] in
-                for await event in events {
-                    guard let self else { return }
-                    self.handle(event)
-                }
-            }
+            session = try await backend.start()
         } catch {
-            startError = String(localized: "control.buzzer.error.start_failed \(Int(port)) \(error.localizedDescription)")
-            AppLogger.buzzer.error("Failed to start the buzzer server on port \(port): \(error)")
+            // The backend logged the details.
+            startError = error.localizedDescription
+            return
+        }
+
+        joinCode = session.joinCode
+        serverURL = session.joinURL
+        baseURL = session.baseURL
+        isRunning = true
+
+        await resync()
+
+        eventObserverTask = Task { [weak self, events = session.events] in
+            for await event in events {
+                guard let self else { return }
+                self.handle(event)
+            }
         }
     }
 
     /// Stops the server and clears all state.
     func stopServer() async {
-        stopPathMonitor()
         eventObserverTask?.cancel()
         eventObserverTask = nil
         firstBuzzTeamID = nil
-        await server?.stop()
-        server = nil
-        room = nil
+        await backend.stop()
         isRunning = false
         joinCode = ""
         serverURL = nil
@@ -283,9 +253,22 @@ final class BuzzerState {
         isJoinScreenOnDisplay = false
     }
 
+    /// Sends the game's current buzzer state to a freshly started backend:
+    /// teams, scores, buzzer mode, Final wagering (when open) and answering.
+    /// A self-hosted server will reuse this when the Mac reconnects (#104).
+    func resync() async {
+        await backend.updateTeams(latestTeams)
+        await backend.updateScores(latestScores)
+        await backend.setBuzzerMode(latestMode)
+        if let limits = wageringLimits {
+            await backend.openWagering(limits: limits, wagers: wageringWagers)
+        }
+        await backend.setAnswering(answeringWindow, answers: answeringAnswers)
+    }
+
     /// Broadcasts the current game phase to all connected phones.
     func broadcastPhase(_ phase: String) async {
-        await room?.broadcast(.state(phase: phase))
+        await backend.broadcastPhase(phase)
     }
 
     /// Applies one thing the room reported.
@@ -325,46 +308,6 @@ final class BuzzerState {
     /// A team's name quoted, for log messages.
     private func teamLabel(_ teamID: UUID) -> String {
         "'\(teamName(teamID))'"
-    }
-
-    // MARK: - Join URLs
-
-    /// The bare page address and the full join link for a server at `ip:port`.
-    nonisolated static func joinURLs(ip: String, port: UInt16, code: String) -> (base: URL, join: URL)? {
-        guard let base = URL(string: "http://\(ip):\(port)"),
-              let join = URL(string: "http://\(ip):\(port)?code=\(code)") else { return nil }
-        return (base, join)
-    }
-
-    // MARK: - Mac network changes
-
-    /// Logs changes to the Mac's own network while the server runs. A Mac
-    /// Wi-Fi blip drops every phone at once; this line makes that obvious.
-    private func startPathMonitor() {
-        stopPathMonitor()
-        let monitor = NWPathMonitor()
-        monitor.pathUpdateHandler = { [weak self] path in
-            let description = NetworkPathSummary.describe(path)
-            Task { @MainActor in self?.pathChanged(to: description) }
-        }
-        monitor.start(queue: .global(qos: .utility))
-        pathMonitor = monitor
-    }
-
-    private func stopPathMonitor() {
-        pathMonitor?.cancel()
-        pathMonitor = nil
-        lastPathDescription = nil
-    }
-
-    private func pathChanged(to description: String) {
-        guard pathMonitor != nil, description != lastPathDescription else { return }
-        if let previous = lastPathDescription {
-            AppLogger.network.warning("Mac network changed: \(previous) → \(description)")
-        } else {
-            AppLogger.network.info("Mac network: \(description)")
-        }
-        lastPathDescription = description
     }
 }
 
