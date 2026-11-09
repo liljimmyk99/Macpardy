@@ -272,8 +272,19 @@ Protocol: [buzzer-protocol.md](buzzer-protocol.md).
   "Phone report" line. While the server runs, `EmbeddedBuzzerBackend` runs an `NWPathMonitor` and logs
   Mac network changes (`NetworkPathSummary`); `LocalNetworkInterfaces` picks the join IP and
   lists every candidate when none is usable.
-- The phone UI is a single self-contained page, `Resources/Buzzer/buzzer.html`, served from
-  the app bundle.
+- The phone UI is a single self-contained page, `buzzer.html`, in the package's
+  `BuzzerWebPage` target (#103) so the built-in and self-hosted servers serve the same page.
+  The app reads it through `BuzzerWebPage.html`.
+- **Self-hosted server (#103):** `BuzzerHub` runs many `BuzzerRoom`s for Macs that connect
+  over the host protocol (`BuzzerHostProtocol`), with no I/O of its own: it checks the host
+  token and version, gives each room a Game PIN no other room uses, routes a phone's `join`
+  by `code`, rate limits wrong PINs per address across the server, and keeps a room for the
+  grace period when its Mac drops (phones paused with `BuzzerRoom.setHostAway`). Its
+  transport, `BuzzerServerNIO`, is SwiftNIO so it runs on Linux in Docker. **Transport
+  decision:** the built-in server stays on Network.framework (it works, it's tuned to the
+  Mac's network, and the app doesn't pull in NIO); only the self-hosted server uses SwiftNIO.
+  The app connecting to a self-hosted server is #104. See
+  [buzzer-protocol.md](buzzer-protocol.md#self-hosted-server).
 
 ## Logging
 

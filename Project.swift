@@ -43,7 +43,6 @@ let project = Project(
             resources: [
                 "Macpardy/Assets.xcassets",
                 "Macpardy/Localizable.xcstrings",
-                "Macpardy/Resources/Buzzer/**",
                 "Macpardy/Resources/Sounds/**",
                 // Kept as a folder so the games can be listed from the bundle.
                 .folderReference(path: "Macpardy/Resources/Games"),
@@ -67,6 +66,7 @@ let project = Project(
             dependencies: [
                 .package(product: "ZIPFoundation"),
                 .package(product: "BuzzerCore"),
+                .package(product: "BuzzerWebPage"),
             ],
             settings: .settings(
                 base: [
