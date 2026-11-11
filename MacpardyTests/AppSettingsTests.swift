@@ -85,4 +85,52 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertFalse(AppSettings.shouldAnimate(setting: true, reduceMotion: true))
         XCTAssertFalse(AppSettings.shouldAnimate(setting: false, reduceMotion: false))
     }
+
+    // MARK: - External buzzer server (#104)
+
+    func testBuzzerServerModeDefaultsToBuiltInAndPersists() {
+        XCTAssertEqual(AppSettings.buzzerServerMode(defaults), .builtIn)
+        defaults.set(AppSettings.BuzzerServerMode.external.rawValue, forKey: AppSettings.Key.buzzerServerMode)
+        XCTAssertEqual(AppSettings.buzzerServerMode(defaults), .external)
+        defaults.set("nonsense", forKey: AppSettings.Key.buzzerServerMode)
+        XCTAssertEqual(AppSettings.buzzerServerMode(defaults), .builtIn)
+    }
+
+    func testExternalServerURLRequiresEncryptionExceptOnLoopback() {
+        XCTAssertEqual(AppSettings.externalServerURL(from: "https://buzz.example.org")?.absoluteString, "https://buzz.example.org")
+        XCTAssertEqual(AppSettings.externalServerURL(from: "  buzz.example.org/ ")?.absoluteString, "https://buzz.example.org")
+        XCTAssertEqual(AppSettings.externalServerURL(from: "wss://buzz.example.org/a/")?.absoluteString, "https://buzz.example.org/a")
+        XCTAssertEqual(AppSettings.externalServerURL(from: "http://localhost:8472")?.absoluteString, "http://localhost:8472")
+        XCTAssertEqual(AppSettings.externalServerURL(from: "http://127.0.0.1:8472")?.absoluteString, "http://127.0.0.1:8472")
+
+        XCTAssertNil(AppSettings.externalServerURL(from: "http://buzz.example.org"))
+        XCTAssertNil(AppSettings.externalServerURL(from: "ftp://buzz.example.org"))
+        XCTAssertNil(AppSettings.externalServerURL(from: "https://user:pw@buzz.example.org"))
+        XCTAssertNil(AppSettings.externalServerURL(from: "https://buzz.example.org?x=1"))
+        XCTAssertNil(AppSettings.externalServerURL(from: ""))
+        XCTAssertNil(AppSettings.externalServerURL(from: "https://"))
+    }
+
+    func testTheHostTokenIsNeverStoredInUserDefaults() {
+        let store = InMemoryHostTokenStore()
+        store.setToken("a-very-secret-token")
+        defaults.set("https://buzz.example.org", forKey: AppSettings.Key.externalServerURL)
+        XCTAssertEqual(store.token(), "a-very-secret-token")
+        XCTAssertFalse(defaults.dictionaryRepresentation().values.contains { "\($0)".contains("a-very-secret-token") })
+        store.setToken("  ")
+        XCTAssertNil(store.token())
+    }
+
+    func testSettingsChangeLogShowsTheHostButNeverTheToken() {
+        let log = LogCapture.capture {
+            let changes = SettingsChangeLog(defaults: defaults)
+            changes.start()
+            defaults.set(AppSettings.BuzzerServerMode.external.rawValue, forKey: AppSettings.Key.buzzerServerMode)
+            defaults.set("https://buzz.example.org/secret-path", forKey: AppSettings.Key.externalServerURL)
+            changes.check()
+        }
+        XCTAssertTrue(log.messages.contains("state: AppSettings.buzzerServerMode: builtIn → external"))
+        XCTAssertTrue(log.messages.contains("state: AppSettings.externalServerHost: none → buzz.example.org"))
+        XCTAssertFalse(log.messages.contains { $0.contains("secret-path") })
+    }
 }

@@ -20,6 +20,9 @@ struct BuzzerJoinInfoView: View {
 
     var body: some View {
         VStack(spacing: 18) {
+            if buzzerState.isReconnecting {
+                BuzzerReconnectingBanner()
+            }
             if buzzerState.isRunning, let url = buzzerState.serverURL, let baseURL = buzzerState.baseURL {
                 if let qrImage = QRCodeGenerator.image(from: url.absoluteString, size: 200) {
                     Image(nsImage: qrImage)

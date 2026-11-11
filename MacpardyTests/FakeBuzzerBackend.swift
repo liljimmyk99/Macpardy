@@ -34,6 +34,8 @@ final class FakeBuzzerBackend: BuzzerBackend {
         var errorDescription: String? { "Port in use" }
     }
 
+    var onStatusChange: ((BuzzerConnectionStatus) -> Void)?
+
     /// Everything `BuzzerState` called, oldest first.
     private(set) var calls: [Call] = []
 

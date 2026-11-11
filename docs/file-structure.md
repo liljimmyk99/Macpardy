@@ -76,6 +76,9 @@ Macpardy/
 │       ├── BuzzerState.swift         @Observable bridge between the app and the buzzer backend
 │       ├── BuzzerBackend.swift       Protocol for where the server runs; session (PIN, URLs, events), errors
 │       ├── EmbeddedBuzzerBackend.swift  The built-in backend: local IP, port, PIN, room + BuzzerServer
+│       ├── RemoteBuzzerBackend.swift    External-server backend (#104): host protocol over WebSocket, reconnect
+│       ├── HostSocket.swift             WebSocket seam for it (URLSessionWebSocketTask; faked in tests)
+│       ├── HostTokenStore.swift         Host token in the Keychain (in-memory twin for tests)
 │       ├── BuzzerServer.swift        actor: NWListener, HTTP, WebSocket handshake and frames
 │       ├── ClientSession.swift       One WebSocket: NWConnection, frame buffers, send() (a BuzzerConnection)
 │       ├── AppBuzzerLogger.swift     BuzzerCore's logging hook → AppLogger.buzzer

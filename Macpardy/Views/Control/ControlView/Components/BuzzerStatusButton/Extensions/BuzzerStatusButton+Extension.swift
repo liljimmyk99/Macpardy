@@ -24,6 +24,7 @@ extension BuzzerStatusButton {
     /// Orange when a phone dropped, green when any are joined, red if the server failed.
     var statusColor: Color {
         if buzzerState.startError != nil { return .red }
+        if buzzerState.isReconnecting { return .orange }
         if !buzzerState.disconnectedTeamIDs.isEmpty { return .orange }
         if connectedTeamCount > 0 { return .green }
         return .secondary

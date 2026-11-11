@@ -5310,6 +5310,246 @@
           }
         }
       }
+    },
+    "settings.buzzers.server_mode" : {
+      "comment" : "Picker label: where the buzzer server runs",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buzzer server"
+          }
+        }
+      }
+    },
+    "settings.buzzers.server_mode.built_in" : {
+      "comment" : "Option",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Built-in server (phones on this Wi-Fi)"
+          }
+        }
+      }
+    },
+    "settings.buzzers.server_mode.external" : {
+      "comment" : "Option",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "External server (phones anywhere)"
+          }
+        }
+      }
+    },
+    "settings.buzzers.server_mode_footer" : {
+      "comment" : "Footer under the server choice",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The built-in server runs on this Mac for phones on the same network. An external server you host lets phones join over the internet; the app then connects out to it."
+          }
+        }
+      }
+    },
+    "settings.buzzers.external.url" : {
+      "comment" : "Text field label",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Server address"
+          }
+        }
+      }
+    },
+    "settings.buzzers.external.url_prompt" : {
+      "comment" : "Placeholder",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "https://buzz.example.org"
+          }
+        }
+      }
+    },
+    "settings.buzzers.external.url_invalid" : {
+      "comment" : "Shown when the address can't be used",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter an https:// address."
+          }
+        }
+      }
+    },
+    "settings.buzzers.external.token" : {
+      "comment" : "Secure field label",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Host token"
+          }
+        }
+      }
+    },
+    "settings.buzzers.external.token_prompt" : {
+      "comment" : "Placeholder",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paste the token from your server"
+          }
+        }
+      }
+    },
+    "settings.buzzers.external.token_saved" : {
+      "comment" : "Placeholder when a token is saved",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saved in the Keychain"
+          }
+        }
+      }
+    },
+    "settings.buzzers.external.remove_token" : {
+      "comment" : "Button",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove Saved Token"
+          }
+        }
+      }
+    },
+    "settings.buzzers.external.footer" : {
+      "comment" : "Footer under the external server fields",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Applies the next time a game starts. The token is kept in the Keychain and only sent over an encrypted connection."
+          }
+        }
+      }
+    },
+    "control.buzzer.reconnecting" : {
+      "comment" : "Shown while reconnecting to the external server",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reconnecting to the buzzer server…"
+          }
+        }
+      }
+    },
+    "control.buzzer.error.not_configured" : {
+      "comment" : "Error",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set the external server's address and host token in Settings > Buzzers."
+          }
+        }
+      }
+    },
+    "control.buzzer.error.bad_token" : {
+      "comment" : "Error",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The buzzer server didn't accept the host token. Check it in Settings > Buzzers."
+          }
+        }
+      }
+    },
+    "control.buzzer.error.rate_limited" : {
+      "comment" : "Error",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Too many wrong tokens were sent to the buzzer server. Wait a few minutes and try again."
+          }
+        }
+      }
+    },
+    "control.buzzer.error.unsupported_version" : {
+      "comment" : "Error",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This version of Macpardy and the buzzer server can't work together. Update one of them."
+          }
+        }
+      }
+    },
+    "control.buzzer.error.server_full" : {
+      "comment" : "Error",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The buzzer server is full. Try again later."
+          }
+        }
+      }
+    },
+    "control.buzzer.error.room_ended" : {
+      "comment" : "Error",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The connection to the buzzer server was lost for too long and the game's room was closed. Restart the buzzers to get a new Game PIN."
+          }
+        }
+      }
+    },
+    "control.buzzer.error.unreachable %@" : {
+      "comment" : "Error; %@ is the reason",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't reach the buzzer server: %@"
+          }
+        }
+      }
     }
   },
   "version" : "1.1"

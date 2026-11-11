@@ -22,6 +22,9 @@ final class SettingsChangeLog {
         ("animationsEnabled", { "\(AppSettings.animationsEnabled($0))" }),
         ("buzzersEnabled", { "\(AppSettings.buzzersEnabled($0))" }),
         ("buzzerPort", { "\(AppSettings.buzzerPort($0))" }),
+        ("buzzerServerMode", { AppSettings.buzzerServerMode($0).rawValue }),
+        // The host name only; the host token is in the Keychain and never logged.
+        ("externalServerHost", { AppSettings.externalServerURL($0)?.host ?? "none" }),
     ]
 
     private let defaults: UserDefaults

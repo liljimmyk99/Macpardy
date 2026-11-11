@@ -254,4 +254,43 @@ final class BuzzerStateTests: XCTestCase {
         }
         XCTFail("Timed out waiting for the condition", file: file, line: line)
     }
+
+    // MARK: - External server connection (#104)
+
+    func testReconnectingShowsUntilTheBackendIsBackThenResyncs() async {
+        await state.syncTeams([BuzzerTeam(team: blue)])
+        await state.setMode(.armed)
+        await state.startServer()
+        backend.clearCalls()
+
+        backend.onStatusChange?(.reconnecting)
+        XCTAssertTrue(state.isReconnecting)
+        XCTAssertTrue(state.isRunning, "The game keeps its PIN and QR code while reconnecting")
+
+        backend.onStatusChange?(.connected)
+        XCTAssertFalse(state.isReconnecting)
+        await waitForCalls { self.backend.calls.contains(.mode(.armed)) }
+        XCTAssertEqual(backend.calls.first, .teams([BuzzerTeam(team: blue)]))
+    }
+
+    func testEndedRoomShowsAnErrorAndStopsRunning() async {
+        await state.startServer()
+        backend.onStatusChange?(.reconnecting)
+        backend.onStatusChange?(.ended(reason: "grace period over"))
+
+        XCTAssertFalse(state.isReconnecting)
+        XCTAssertFalse(state.isRunning)
+        XCTAssertNotNil(state.startError)
+    }
+
+    func testStoppingClearsReconnecting() async {
+        await state.startServer()
+        backend.onStatusChange?(.reconnecting)
+        await state.stopServer()
+        XCTAssertFalse(state.isReconnecting)
+    }
+
+    private func waitForCalls(_ condition: () -> Bool) async {
+        for _ in 0..<200 where !condition() { try? await Task.sleep(for: .milliseconds(5)) }
+    }
 }

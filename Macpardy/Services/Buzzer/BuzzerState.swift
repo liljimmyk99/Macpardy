@@ -35,6 +35,11 @@ final class BuzzerState {
         didSet { log.change("BuzzerState.serverRunning", from: oldValue, to: isRunning) }
     }
 
+    /// Whether the connection to an external server dropped and the app is retrying (#104).
+    private(set) var isReconnecting: Bool = false {
+        didSet { log.change("BuzzerState.reconnecting", from: oldValue, to: isReconnecting) }
+    }
+
     /// Human-readable reason the server could not start (or stopped), if any.
     private(set) var startError: String?
 
@@ -84,8 +89,10 @@ final class BuzzerState {
 
     private let log = AppLogger.buzzer
 
-    /// Where the server runs. Today always the built-in one (#102).
-    private let backend: any BuzzerBackend
+    /// Where the server runs: the built-in one, or an external one (#104). When a factory is
+    /// given, each `startServer()` asks it, so the choice in Settings applies to the next start.
+    private var backend: any BuzzerBackend
+    private let backendFactory: ((UserDefaults) -> any BuzzerBackend)?
     private let defaults: UserDefaults
 
     // The game's latest buzzer state, replayed into the backend by `resync()`.
@@ -102,7 +109,47 @@ final class BuzzerState {
 
     init(backend: any BuzzerBackend = EmbeddedBuzzerBackend(), defaults: UserDefaults = .standard) {
         self.backend = backend
+        self.backendFactory = nil
         self.defaults = defaults
+        observeStatus(of: backend)
+    }
+
+    /// The app's own: picks the built-in or the external backend from Settings at each start.
+    init(fromSettings defaults: UserDefaults, tokenStore: any HostTokenStore = KeychainHostTokenStore()) {
+        let factory: (UserDefaults) -> any BuzzerBackend = { defaults in
+            switch AppSettings.buzzerServerMode(defaults) {
+            case .builtIn: EmbeddedBuzzerBackend(defaults: defaults)
+            case .external: RemoteBuzzerBackend(defaults: defaults, tokenStore: tokenStore)
+            }
+        }
+        let initial = factory(defaults)
+        self.backend = initial
+        self.backendFactory = factory
+        self.defaults = defaults
+        observeStatus(of: initial)
+    }
+
+    private func observeStatus(of backend: any BuzzerBackend) {
+        backend.onStatusChange = { [weak self] status in self?.handle(status) }
+    }
+
+    /// A connection change from an external backend (#104).
+    private func handle(_ status: BuzzerConnectionStatus) {
+        switch status {
+        case .connected:
+            let wasReconnecting = isReconnecting
+            isReconnecting = false
+            // The server may be a different room than before the drop: replay the game into it.
+            if wasReconnecting { Task { await resync() } }
+        case .reconnecting:
+            guard isRunning else { return }
+            isReconnecting = true
+        case let .ended(reason):
+            log.state("Buzzer room ended: \(reason)")
+            isReconnecting = false
+            startError = String(localized: "control.buzzer.error.room_ended")
+            isRunning = false
+        }
     }
 
     // MARK: - Teams
@@ -208,6 +255,11 @@ final class BuzzerState {
 
         startError = nil
 
+        if let backendFactory, AppSettings.buzzersEnabled(defaults) {
+            backend = backendFactory(defaults)
+            observeStatus(of: backend)
+        }
+
         guard AppSettings.buzzersEnabled(defaults) else {
             log.info("Buzzer server not started: buzzers are turned off in Settings")
             return
@@ -243,6 +295,7 @@ final class BuzzerState {
         eventObserverTask = nil
         firstBuzzTeamID = nil
         await backend.stop()
+        isReconnecting = false
         isRunning = false
         joinCode = ""
         serverURL = nil
@@ -255,7 +308,7 @@ final class BuzzerState {
 
     /// Sends the game's current buzzer state to a freshly started backend:
     /// teams, scores, buzzer mode, Final wagering (when open) and answering.
-    /// A self-hosted server will reuse this when the Mac reconnects (#104).
+    /// Also runs when the Mac takes its room back on a self-hosted server (#104).
     func resync() async {
         await backend.updateTeams(latestTeams)
         await backend.updateScores(latestScores)
