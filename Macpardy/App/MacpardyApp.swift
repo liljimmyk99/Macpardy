@@ -54,6 +54,36 @@ final class MacpardyAppDelegate: NSObject, NSApplicationDelegate {
         return .terminateLater
     }
 
+    /// Right-clicking the Dock icon lists the open windows; choosing one brings it forward.
+    func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
+        let windows = NSApp.windows
+        let infos = windows.map {
+            DockMenuBuilder.WindowInfo(
+                title: $0.title,
+                isVisible: $0.isVisible,
+                isMiniaturized: $0.isMiniaturized,
+                isKey: $0.isKeyWindow,
+                isPanel: $0 is NSPanel
+            )
+        }
+        let entries = DockMenuBuilder.entries(for: infos)
+        guard !entries.isEmpty else { return nil }
+
+        let menu = NSMenu()
+        for entry in entries {
+            let window = windows[entry.index]
+            let item = ClosureMenuItem(title: entry.title) {
+                AppLogger.control.debug("dock menu › activate window \(entry.title)")
+                if window.isMiniaturized { window.deminiaturize(nil) }
+                window.makeKeyAndOrderFront(nil)
+                NSApp.activate()
+            }
+            item.state = entry.isKey ? .on : .off
+            menu.addItem(item)
+        }
+        return menu
+    }
+
     /// Writes the last log lines before the app exits (waits at most half a second).
     func applicationWillTerminate(_ notification: Notification) {
         AppLogger.control.info("Macpardy quitting")
@@ -67,6 +97,21 @@ final class MacpardyAppDelegate: NSObject, NSApplicationDelegate {
         }
         _ = done.wait(timeout: .now() + 0.5)
     }
+}
+
+/// A menu item that runs a closure when chosen.
+private final class ClosureMenuItem: NSMenuItem {
+    private let handler: () -> Void
+
+    init(title: String, handler: @escaping () -> Void) {
+        self.handler = handler
+        super.init(title: title, action: #selector(run), keyEquivalent: "")
+        target = self
+    }
+
+    required init(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+
+    @objc private func run() { handler() }
 }
 
 @main

@@ -96,6 +96,10 @@ A sheet with two options:
 
 ## 3. Running a game (Control + Display)
 
+**Dock menu.** Right-click the Dock icon to see every open Macpardy window (Control, Display,
+editor, Logs, Shortcuts). The active one is checked; click one to bring it forward, even if it
+is minimized. Handy for finding the Display window on a TV or projector.
+
 The Control window uses the Display's board look. Its toolbar shows the round title and
 progress, a **Buzzers** button (hidden when buzzers are off in Settings), **Show Display**, and on the board **Final Macpardy** and
 **Next Round**. On the board phase the host picks clues from a copy of the Display board; Daily
