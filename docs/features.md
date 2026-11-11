@@ -300,6 +300,14 @@ The app keeps its own log so a host can see why phones won't connect or drop off
 
 What the buzzer lines mean: [buzzer-protocol.md](buzzer-protocol.md#troubleshooting-disconnects).
 
+### First-time walkthrough
+
+A sheet on the launch screen walks new hosts through starting a game, connecting buzzers
+(including the macOS firewall prompt), running a game and creating a board (#76). It opens
+automatically on the first launch; finishing or skipping sets `settings.general.walkthroughSeen`.
+Reopen it any time from **Help > Show Walkthrough** or the **Take the tour** link on the launch
+screen (both only while no game is running).
+
 ## 7. Keyboard shortcuts
 
 **Help > Keyboard Shortcuts** (⌘/), or the keyboard button in the Control toolbar, opens a window

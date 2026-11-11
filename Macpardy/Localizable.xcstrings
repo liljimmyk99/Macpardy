@@ -5550,6 +5550,366 @@
           }
         }
       }
+    },
+    "menu.help.show_walkthrough" : {
+      "comment" : "Help menu item that reopens the first-time walkthrough",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Walkthrough"
+          }
+        }
+      }
+    },
+    "launch.take_tour" : {
+      "comment" : "Launch screen link that opens the first-time walkthrough",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Take the tour"
+          }
+        }
+      }
+    },
+    "walkthrough.button.skip" : {
+      "comment" : "Walkthrough: skip button",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skip"
+          }
+        }
+      }
+    },
+    "walkthrough.button.back" : {
+      "comment" : "Walkthrough: back button",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Back"
+          }
+        }
+      }
+    },
+    "walkthrough.button.next" : {
+      "comment" : "Walkthrough: next button",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next"
+          }
+        }
+      }
+    },
+    "walkthrough.button.done" : {
+      "comment" : "Walkthrough: button on the last page",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Get Started"
+          }
+        }
+      }
+    },
+    "walkthrough.progress %lld %lld" : {
+      "comment" : "Walkthrough: accessibility label for the page dots",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Step %1$lld of %2$lld"
+          }
+        }
+      }
+    },
+    "walkthrough.welcome.title" : {
+      "comment" : "Walkthrough page 1 title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Welcome to Macpardy!"
+          }
+        }
+      }
+    },
+    "walkthrough.welcome.body" : {
+      "comment" : "Walkthrough page 1 body",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You run the game from this window on your Mac, show the board on a TV or projector, and teams buzz in from their phones. Here's a quick tour."
+          }
+        }
+      }
+    },
+    "walkthrough.start_game.title" : {
+      "comment" : "Walkthrough page 2 title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start a game"
+          }
+        }
+      }
+    },
+    "walkthrough.start_game.body" : {
+      "comment" : "Walkthrough page 2 body",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pick a board, set up your teams, and you're ready to play."
+          }
+        }
+      }
+    },
+    "walkthrough.start_game.tip1" : {
+      "comment" : "Walkthrough page 2 tip",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Play opens a built-in game or a board file. New builds or imports your own."
+          }
+        }
+      }
+    },
+    "walkthrough.start_game.tip2" : {
+      "comment" : "Walkthrough page 2 tip",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name your teams on the setup screen, then press Start Game."
+          }
+        }
+      }
+    },
+    "walkthrough.start_game.tip3" : {
+      "comment" : "Walkthrough page 2 tip",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show the Display window on the TV or projector with ⌘D."
+          }
+        }
+      }
+    },
+    "walkthrough.buzzers.title" : {
+      "comment" : "Walkthrough page 3 title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect the buzzers"
+          }
+        }
+      }
+    },
+    "walkthrough.buzzers.body" : {
+      "comment" : "Walkthrough page 3 body",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Players buzz in with their phones. Each team scans the QR code or enters the PIN shown on the setup screen."
+          }
+        }
+      }
+    },
+    "walkthrough.buzzers.tip1" : {
+      "comment" : "Walkthrough page 3 tip",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Phones must be on the same Wi‑Fi network as this Mac."
+          }
+        }
+      }
+    },
+    "walkthrough.buzzers.tip2" : {
+      "comment" : "Walkthrough page 3 tip",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "If macOS asks to allow incoming connections or local network access, choose Allow."
+          }
+        }
+      }
+    },
+    "walkthrough.buzzers.tip3" : {
+      "comment" : "Walkthrough page 3 tip",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guest networks and VPNs can block phones. Check your firewall settings if a phone can't connect."
+          }
+        }
+      }
+    },
+    "walkthrough.buzzers.tip4" : {
+      "comment" : "Walkthrough page 3 tip",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On Android, allow Chrome the Nearby devices permission."
+          }
+        }
+      }
+    },
+    "walkthrough.buzzers.open_settings" : {
+      "comment" : "Walkthrough page 3 button that opens System Settings",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Network Settings"
+          }
+        }
+      }
+    },
+    "walkthrough.run_game.title" : {
+      "comment" : "Walkthrough page 4 title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Run the game"
+          }
+        }
+      }
+    },
+    "walkthrough.run_game.body" : {
+      "comment" : "Walkthrough page 4 body",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pick clues from the board, reveal answers, and keep score as the game goes."
+          }
+        }
+      }
+    },
+    "walkthrough.run_game.tip1" : {
+      "comment" : "Walkthrough page 4 tip",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a clue, then reveal the answer when a team has responded."
+          }
+        }
+      }
+    },
+    "walkthrough.run_game.tip2" : {
+      "comment" : "Walkthrough page 4 tip",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Award or deduct points with the team buttons. The Display updates right away."
+          }
+        }
+      }
+    },
+    "walkthrough.run_game.tip3" : {
+      "comment" : "Walkthrough page 4 tip",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Look under Help > Keyboard Shortcuts for faster controls."
+          }
+        }
+      }
+    },
+    "walkthrough.create.title" : {
+      "comment" : "Walkthrough page 5 title",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Create your own game"
+          }
+        }
+      }
+    },
+    "walkthrough.create.body" : {
+      "comment" : "Walkthrough page 5 body",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Write your own categories and clues, or bring them in from a spreadsheet."
+          }
+        }
+      }
+    },
+    "walkthrough.create.tip1" : {
+      "comment" : "Walkthrough page 5 tip",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On the launch screen choose New, then Build in editor or Import CSV."
+          }
+        }
+      }
+    },
+    "walkthrough.create.tip2" : {
+      "comment" : "Walkthrough page 5 tip",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Boards are saved as .macpardy files you can reuse and share."
+          }
+        }
+      }
     }
   },
   "version" : "1.1"
