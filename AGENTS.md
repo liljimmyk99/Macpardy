@@ -153,9 +153,11 @@ level, but saved and exported). See [`docs/architecture.md`](docs/architecture.m
 The app is sandboxed with only: user-selected file read/write, and network server + client
 (for the buzzer server). The client entitlement is there only because a sandboxed
 `NWListener` can't accept connections from other devices without it; the app doesn't make
-outgoing connections, so don't add features that do. The one planned exception is the
-external buzzer server (#99): the app may connect out to the server URL the host entered,
-and only while the external server is turned on in Settings > Buzzers. See
+outgoing connections, so don't add features that do. The one exception is the external
+buzzer server (#99, #104): `RemoteBuzzerBackend` connects out to the server URL the host
+entered, and only while **External server** is chosen in Settings > Buzzers (and buzzers are
+on). It needs no new entitlement. The host token lives in the Keychain, only travels over
+`wss://` (`ws://` for loopback only) and is never logged. See
 [External buzzer server](#external-buzzer-server-in-progress-99). Don't add features that need
 new entitlements without calling it out in the PR; `scripts/export.sh` checks the exact set.
 Files the user picks must be read with security-scoped access (see `FileManagerService`).

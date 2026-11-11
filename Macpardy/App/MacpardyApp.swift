@@ -82,7 +82,7 @@ struct MacpardyApp: App {
     private var hasSelectedGame = false
 
     @State
-    private var buzzerState = BuzzerState()
+    private var buzzerState = BuzzerState(fromSettings: .standard)
 
     @State
     private var editorSession = BoardEditorSession.shared

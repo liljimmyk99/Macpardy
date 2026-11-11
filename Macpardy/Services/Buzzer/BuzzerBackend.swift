@@ -25,11 +25,26 @@ nonisolated struct BuzzerBackendSession: Sendable {
     let events: AsyncStream<BuzzerRoomEvent>
 }
 
+/// Whether the backend can reach its server right now. Only a remote backend ever leaves
+/// `.connected` (#104).
+nonisolated enum BuzzerConnectionStatus: Equatable, Sendable {
+    /// Running. After a drop this is reported again once the room is taken back; `BuzzerState`
+    /// then resyncs.
+    case connected
+    /// The connection dropped and the backend is retrying within the server's grace period.
+    case reconnecting
+    /// The room is gone for good (grace period over, or the server closed it).
+    case ended(reason: String)
+}
+
 /// A buzzer server the app can start, stop and send game changes to.
 ///
 /// Calls arrive on the main actor from `BuzzerState`. Commands sent while the
 /// backend isn't running are dropped; `BuzzerState` resyncs after `start()`.
 protocol BuzzerBackend: AnyObject {
+
+    /// Called on the main actor when the connection to the server changes (#104).
+    var onStatusChange: ((BuzzerConnectionStatus) -> Void)? { get set }
 
     // MARK: Lifecycle
 
@@ -64,6 +79,20 @@ nonisolated enum BuzzerBackendError: LocalizedError {
     case noLocalAddress
     /// The listener couldn't open the port.
     case listenerFailed(port: UInt16, underlying: any Error)
+    /// External server (#104): no valid server URL or no host token in Settings.
+    case notConfigured
+    /// The server refused the host token.
+    case badToken
+    /// Too many wrong tokens from this Mac; try again later.
+    case rateLimited
+    /// The app and the server don't speak the same host protocol version.
+    case unsupportedVersion
+    /// The server has no room for another game.
+    case serverFull
+    /// Taking a room back after a drop: the server no longer has it.
+    case roomNotFound
+    /// The server couldn't be reached or didn't answer.
+    case unreachable(underlying: String)
 
     var errorDescription: String? {
         switch self {
@@ -71,6 +100,20 @@ nonisolated enum BuzzerBackendError: LocalizedError {
             String(localized: "control.buzzer.error.no_local_address")
         case let .listenerFailed(port, underlying):
             String(localized: "control.buzzer.error.start_failed \(Int(port)) \(underlying.localizedDescription)")
+        case .notConfigured:
+            String(localized: "control.buzzer.error.not_configured")
+        case .badToken:
+            String(localized: "control.buzzer.error.bad_token")
+        case .rateLimited:
+            String(localized: "control.buzzer.error.rate_limited")
+        case .unsupportedVersion:
+            String(localized: "control.buzzer.error.unsupported_version")
+        case .serverFull:
+            String(localized: "control.buzzer.error.server_full")
+        case .roomNotFound:
+            String(localized: "control.buzzer.error.room_ended")
+        case let .unreachable(underlying):
+            String(localized: "control.buzzer.error.unreachable \(underlying)")
         }
     }
 }

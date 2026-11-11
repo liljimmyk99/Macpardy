@@ -28,6 +28,11 @@ extension PresentationView {
     @ViewBuilder
     func buzzerJoinContent() -> some View {
         if let url = buzzerState.serverURL, let baseURL = buzzerState.baseURL {
+            if buzzerState.isReconnecting {
+                // Phones can't buzz until the room is taken back (#104).
+                BuzzerReconnectingBanner()
+                    .font(.title3)
+            }
             DisplayBuzzerJoinPanel(joinURL: url, baseURL: baseURL, joinCode: buzzerState.joinCode)
             DisplayTeamConnectionRow(
                 teams: gameState.game.teams,

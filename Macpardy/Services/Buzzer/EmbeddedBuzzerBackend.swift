@@ -21,6 +21,9 @@ import Network
 
 final class EmbeddedBuzzerBackend: BuzzerBackend {
 
+    /// The built-in server is always reachable; nothing to report.
+    var onStatusChange: ((BuzzerConnectionStatus) -> Void)?
+
     private let defaults: UserDefaults
     private var server: BuzzerServer?
     /// The running server's room, which the game calls below go to.

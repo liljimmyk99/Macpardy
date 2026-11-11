@@ -345,9 +345,11 @@ nw_connection_create_from_protocol_on_nw_queue [C33] Failed to create connection
 ```
 
 These connections never appear in `netstat`, so the only sign is phones timing out. The app
-doesn't open outgoing connections; `network.client` is there only for this. The one planned
-exception is connecting to a [self-hosted server](#self-hosted-server) (#104), only while
-the external server is turned on in Settings > Buzzers; it needs no new entitlement.
+doesn't open outgoing connections except one: since #104, `RemoteBuzzerBackend` connects to
+the [self-hosted server](#self-hosted-server) the host entered (`wss://<server>/host`), only
+while **External server** is chosen in Settings > Buzzers. It uses the same `network.client`
+entitlement, so `scripts/export.sh`'s entitlement check is unchanged. With the built-in
+server chosen the app makes no outgoing connections.
 macOS Local Network privacy doesn't apply here: accepting incoming TCP connections doesn't
 require it, so no permission prompt appears.
 

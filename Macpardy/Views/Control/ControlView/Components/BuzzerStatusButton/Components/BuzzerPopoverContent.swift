@@ -4,6 +4,11 @@ import SwiftUI
 extension BuzzerStatusButton {
     func popoverContent() -> some View {
         VStack(alignment: .leading, spacing: 0) {
+            if buzzerState.isReconnecting {
+                BuzzerReconnectingBanner()
+                    .padding([.horizontal, .top], 16)
+            }
+
             joinHeader()
                 .padding(16)
 

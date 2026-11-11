@@ -66,6 +66,7 @@ let project = Project(
             dependencies: [
                 .package(product: "ZIPFoundation"),
                 .package(product: "BuzzerCore"),
+                .package(product: "BuzzerHostProtocol"),
                 .package(product: "BuzzerWebPage"),
             ],
             settings: .settings(
@@ -79,7 +80,8 @@ let project = Project(
                     "ENABLE_APP_SANDBOX": "YES",
                     "ENABLE_INCOMING_NETWORK_CONNECTIONS": "YES",
                     // NWListener needs network.client to accept connections from other devices
-                    // in the sandbox; the app itself never connects out. See buzzer-protocol.md.
+                    // in the sandbox. The app connects out only to the external buzzer server
+                    // the host entered, and only while it is turned on (#104). See buzzer-protocol.md.
                     "ENABLE_OUTGOING_NETWORK_CONNECTIONS": "YES",
                     "ENABLE_PREVIEWS": "YES",
                     "ENABLE_RESOURCE_ACCESS_AUDIO_INPUT": "NO",

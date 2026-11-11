@@ -19,6 +19,8 @@ nonisolated enum AppSettings {
         static let teamNamePrefix = "settings.game.teamName."
         static let buzzerPort = "settings.buzzers.port"
         static let buzzersEnabled = "settings.buzzers.enabled"
+        static let buzzerServerMode = "settings.buzzers.serverMode"
+        static let externalServerURL = "settings.buzzers.externalServerURL"
         static let animationsEnabled = "settings.display.animationsEnabled"
     }
 
@@ -128,5 +130,50 @@ nonisolated enum AppSettings {
             return UInt16(defaultBuzzerPort)
         }
         return UInt16(clampPort(stored))
+    }
+
+    // MARK: - External buzzer server (#104)
+
+    /// Where the buzzer server runs. The host token lives in the Keychain, not here.
+    enum BuzzerServerMode: String, CaseIterable, Sendable {
+        case builtIn
+        case external
+    }
+
+    static let defaultBuzzerServerMode = BuzzerServerMode.builtIn
+
+    static func buzzerServerMode(_ defaults: UserDefaults = .standard) -> BuzzerServerMode {
+        defaults.string(forKey: Key.buzzerServerMode).flatMap(BuzzerServerMode.init(rawValue:)) ?? defaultBuzzerServerMode
+    }
+
+    static func externalServerURLText(_ defaults: UserDefaults = .standard) -> String {
+        defaults.string(forKey: Key.externalServerURL) ?? ""
+    }
+
+    /// The server address the host typed, as a base URL, or `nil` if it isn't usable. The host
+    /// token must only travel encrypted, so `https://` (or `wss://`) is required; plain `http://`
+    /// is accepted for loopback only, to try a server on the same Mac. A bare host name gets `https://`.
+    static func externalServerURL(from text: String) -> URL? {
+        var trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        if !trimmed.contains("://") { trimmed = "https://" + trimmed }
+        guard var components = URLComponents(string: trimmed),
+              let scheme = components.scheme?.lowercased(),
+              let host = components.host?.lowercased(), !host.isEmpty,
+              components.user == nil, components.password == nil,
+              components.query == nil, components.fragment == nil else { return nil }
+        let isLoopback = host == "localhost" || host == "127.0.0.1" || host == "::1" || host.hasSuffix(".localhost")
+        switch scheme {
+        case "https", "wss": components.scheme = "https"
+        case "http" where isLoopback, "ws" where isLoopback: components.scheme = "http"
+        default: return nil
+        }
+        // Keep the path (the server may sit under one) without a trailing slash.
+        while components.path.hasSuffix("/") { components.path.removeLast() }
+        return components.url
+    }
+
+    static func externalServerURL(_ defaults: UserDefaults = .standard) -> URL? {
+        externalServerURL(from: externalServerURLText(defaults))
     }
 }
