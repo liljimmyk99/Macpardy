@@ -89,6 +89,7 @@ struct MacpardyApp: App {
 
     @State
     private var boardOpenCoordinator = BoardOpenCoordinator()
+    @State private var walkthroughCoordinator = WalkthroughCoordinator()
 
     @AppStorage(AppSettings.Key.buzzersEnabled)
     private var buzzersEnabled = AppSettings.defaultBuzzersEnabled
@@ -197,12 +198,14 @@ struct MacpardyApp: App {
                     LaunchScreenView(hasSelectedGame: $hasSelectedGame, gameState: $gameState)
                         .environment(buzzerState)
                         .environment(editorSession)
+                        .environment(walkthroughCoordinator)
                 }
             }
             .boardOpenDialogs(boardOpenCoordinator)
             .background(WindowCloseGuard(shouldClose: { true }, onWindow: { appDelegate.controlWindow = $0 }))
             .onAppear {
                 boardOpenCoordinator.isGameRunning = { hasSelectedGame }
+                walkthroughCoordinator.isAvailable = { !hasSelectedGame }
                 boardOpenCoordinator.startGame = { boards in startGame(with: boards) }
             }
             // Double-clicking a .macpardy board in Finder opens it here.
@@ -293,7 +296,7 @@ struct MacpardyApp: App {
         }
         .commands {
             FileCommands(coordinator: boardOpenCoordinator)
-            HelpCommands()
+            HelpCommands(walkthrough: walkthroughCoordinator)
             GameCommands(
                 gameState: gameState,
                 buzzerState: buzzerState,

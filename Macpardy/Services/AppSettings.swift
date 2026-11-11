@@ -22,6 +22,7 @@ nonisolated enum AppSettings {
         static let buzzerServerMode = "settings.buzzers.serverMode"
         static let externalServerURL = "settings.buzzers.externalServerURL"
         static let animationsEnabled = "settings.display.animationsEnabled"
+        static let walkthroughSeen = "settings.general.walkthroughSeen"
     }
 
     // MARK: - Question timer
@@ -103,6 +104,18 @@ nonisolated enum AppSettings {
     /// Reduce Motion is off.
     static func shouldAnimate(setting: Bool, reduceMotion: Bool) -> Bool {
         setting && !reduceMotion
+    }
+
+    // MARK: - Walkthrough
+
+    static let defaultWalkthroughSeen = false
+
+    /// Whether the first-time walkthrough (#76) has been finished or skipped.
+    static func walkthroughSeen(_ defaults: UserDefaults = .standard) -> Bool {
+        guard let stored = defaults.object(forKey: Key.walkthroughSeen) as? Bool else {
+            return defaultWalkthroughSeen
+        }
+        return stored
     }
 
     // MARK: - Buzzer server

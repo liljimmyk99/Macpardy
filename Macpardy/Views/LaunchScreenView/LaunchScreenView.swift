@@ -10,6 +10,7 @@ struct LaunchScreenView: View {
 
     @Environment(\.openWindow) var openWindow
     @Environment(BoardEditorSession.self) var editorSession
+    @Environment(WalkthroughCoordinator.self) var walkthrough
     var recents: RecentBoards = .shared
 
     @Binding var hasSelectedGame: Bool
@@ -43,6 +44,12 @@ struct LaunchScreenView: View {
                 )
                 .frame(maxWidth: 1020)
             }
+
+            LoggedButton("launch.take_tour", systemImage: "questionmark.circle", log: "Launch › Take the tour") {
+                walkthrough.request()
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(MacpardyTheme.mutedText)
         }
         .padding(48)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -50,7 +57,12 @@ struct LaunchScreenView: View {
         .preferredColorScheme(.dark)
         .task {
             savedSnapshot = await GameSaveStore.shared.load()
+            walkthrough.presentIfFirstRun()
         }
+        .sheet(isPresented: Bindable(walkthrough).isPresented) {
+            WalkthroughView(onFinish: { walkthrough.finish() })
+        }
+        .logPresentation("sheet 'Walkthrough'", isPresented: walkthrough.isPresented)
         .fileImporter(
             isPresented: $showEditImporter,
             allowedContentTypes: [.macpardyBoard, .json, .zip, .commaSeparatedText]
@@ -132,6 +144,7 @@ struct LaunchScreenView: View {
         gameState: .constant(GameState())
     )
     .environment(BoardEditorSession())
+    .environment(WalkthroughCoordinator())
     .frame(width: 1200, height: 800)
 }
 
