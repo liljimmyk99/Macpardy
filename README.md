@@ -2,7 +2,7 @@
 
 A macOS app for hosting a Jeopardy-style trivia night ("Macpardy!"). The host runs the game
 from a control window, the room watches a full-screen display on a TV or projector, and teams
-can buzz in from their phones over the local network. No accounts, no server, no internet.
+can buzz in from their phones over the local network. No accounts, no server, no internet. (Optionally, [self-host the buzzer server](docs/self-hosting.md) so phones on other networks can join.)
 
 ## Features
 
@@ -62,4 +62,5 @@ Run the **Macpardy** scheme. To make a shareable build, see [EXPORTING.md](EXPOR
 | [docs/file-structure.md](docs/file-structure.md) | Where everything lives |
 | [docs/board-format.md](docs/board-format.md) | Board file formats |
 | [docs/csv-import.md](docs/csv-import.md) | Creating a game from CSV |
-| [docs/buzzer-protocol.md](docs/buzzer-protocol.md) | Phone ⇄ app WebSocket protocol |
+| [docs/buzzer-protocol.md](docs/buzzer-protocol.md) | Phone ⇄ app WebSocket protocol, and the host protocol |
+| [docs/self-hosting.md](docs/self-hosting.md) | Running the buzzer server in Docker so phones on other networks can join |

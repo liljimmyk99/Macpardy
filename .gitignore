@@ -3,11 +3,3 @@
 /build/
 /Macpardy.xcodeproj/
 /Macpardy.xcworkspace/
-/Packages/*/.build/
-/Packages/*/.swiftpm/
-/Packages/*/Package.resolved
-# The self-hosted buzzer server pins its dependencies for reproducible images (#103).
-!/Packages/MacpardyBuzzer/Package.resolved
-# Its local deployment secrets.
-/Packages/MacpardyBuzzer/.env
-/Packages/MacpardyBuzzer/deploy/host_token.txt

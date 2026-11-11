@@ -15,8 +15,6 @@ how the pieces fit together.
 │   └── Macpardy.entitlements    Sandbox, user-selected files, network server + client
 ├── Macpardy/                App target sources and resources
 ├── MacpardyTests/           Unit tests (XCTest)
-├── Packages/
-│   └── MacpardyBuzzer/        Local Swift package: the buzzer core, page and self-hosted server (see below)
 ├── docs/                     Design and format docs
 ├── scripts/
 │   └── export.sh             Release build, ad-hoc signing, .dmg
@@ -147,22 +145,27 @@ SomeView/
 └── Models/                       (optional) view-specific value types, e.g. BoardDraft
 ```
 
-## `Packages/MacpardyBuzzer/` (buzzer core and self-hosted server)
+## The buzzer package (buzzer core and self-hosted server)
 
-A local Swift package (#99) the app depends on through `Project.swift` (products
-`BuzzerCore` and `BuzzerWebPage`). `BuzzerCore`, `BuzzerHostProtocol` and `BuzzerHub` are
+A Swift package (#99) in its own repo, [Macpardy-Buzzer-Server](https://github.com/liljimmyk99/Macpardy-Buzzer-Server), which the app depends
+on through `Project.swift`, pinned to a version (products `BuzzerCore`, `BuzzerHostProtocol` and
+`BuzzerWebPage`). It's laid out as below; to change it, work in that repo, release a version, and
+bump the pin here. `BuzzerCore`, `BuzzerHostProtocol` and `BuzzerHub` are
 Foundation-only so they build on Linux: no `Network`, `AppKit`, `OSLog` or `CommonCrypto`.
 Their types are `public` and `Sendable`, and they don't use the app's default `MainActor`
 isolation. Only the self-hosted server's transport (`BuzzerServerNIO`) uses SwiftNIO; the
-app doesn't link it. `Package.resolved` is committed so Docker images are reproducible.
+app doesn't link it.
 
 ```
-Packages/MacpardyBuzzer/
+Macpardy-Buzzer-Server/
 ├── Package.swift                 Libraries, the server executable, tests
 ├── Dockerfile                    Multi-stage image for macpardy-buzzer-server (#103)
 ├── docker-compose.yml            The server behind Caddy (HTTPS, Let's Encrypt), optional DuckDNS
 ├── deploy/Caddyfile              Reverse proxy config for the compose file
-├── README.md                     Self-hosting guide
+├── README.md                     Package overview and configuration table
+├── VERSION                       The version released next (the tag the app pins, and the image tag)
+├── docs/self-hosting.md          The self-hosting guide
+├── .github/workflows/            CI (macOS, Linux, image) and the release workflow
 ├── scripts/smoke-test.mjs        End-to-end check of a running server (Node 22+)
 ├── Sources/BuzzerWebPage/        buzzer.html (phone page, HTML + CSS + JS in one file) and
 │                                 BuzzerWebPage.html to read it; served by both servers
@@ -260,11 +263,11 @@ One `<Type>Tests.swift` per type under test:
 | A new game rule or state | `GameState` (method) + `GameSnapshot` if it must survive a resume |
 | A new data field on boards | `Models/` + keep old files decoding + `board-format.md` |
 | Pure logic (parsing, rules) | `Services/`, `nonisolated`, with a test in `MacpardyTests/` |
-| Pure buzzer logic (no I/O) | `Packages/MacpardyBuzzer/Sources/BuzzerCore/`, `public` + `Sendable`, Foundation only, tested with `swift test` |
+| Pure buzzer logic (no I/O) | the `BuzzerCore` target of the buzzer package (own repo), `public` + `Sendable`, Foundation only, tested with `swift test` there |
 | File or network I/O | An `actor` in `Services/` |
 | A host screen | `Views/Control/…` using the view folder pattern |
 | An audience screen | `Views/Display/PresentationView/Components/…` |
 | Something used by both | `Views/Shared/` |
-| Buzzer behaviour | `BuzzerRoom` / `BuzzerCore` (rules) or `Services/Buzzer/` (transport) + `Packages/MacpardyBuzzer/Sources/BuzzerWebPage/Resources/buzzer.html` + `buzzer-protocol.md` |
-| Self-hosted server | `BuzzerHub` (rooms, host protocol), `BuzzerServerNIO` (transport), `BuzzerHostProtocol` (messages), Docker files in the package root |
+| Buzzer behaviour | `BuzzerRoom` / `BuzzerCore` (rules) or `Services/Buzzer/` (transport) + `buzzer.html` in the buzzer package repo (`Sources/BuzzerWebPage/Resources/`) + `buzzer-protocol.md` |
+| Self-hosted server | `BuzzerHub` (rooms, host protocol), `BuzzerServerNIO` (transport), `BuzzerHostProtocol` (messages), Docker files in the buzzer package repo |
 | UI text | `Localizable.xcstrings` |

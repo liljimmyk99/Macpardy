@@ -253,7 +253,7 @@ are remembered (`UserDefaults`, keys in `AppSettings`).
 - **Display:** animations on or off (default on). They are also off whenever macOS
   **Reduce Motion** is on.
 - **Buzzers:** **Server** chooses **Built-in server** (default, phones on this Wi-Fi) or
-  **External server** (#104, phones anywhere): enter its `https://` address and host token (kept in
+  **External server** (#104, phones anywhere; setup in [self-hosting.md](self-hosting.md)): enter its `https://` address and host token (kept in
   the Keychain, never shown again), applied the next time a game starts. The Game PIN and QR
   code then come from the server. If the Mac's connection drops, Control shows "Reconnecting to
   the buzzer server…" and the game carries on once the room is taken back; if the server's grace
