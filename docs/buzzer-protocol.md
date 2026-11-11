@@ -681,10 +681,11 @@ changes this. The setup panel on Control and the Display join panel both show th
 ## Self-hosted server
 
 Since #103 the same page and phone protocol can also run on a self-hosted server: the
-`macpardy-buzzer-server` executable in `Packages/MacpardyBuzzer`, shipped as a Docker image
+`macpardy-buzzer-server` executable in the [Macpardy-Buzzer-Server](https://github.com/liljimmyk99/Macpardy-Buzzer-Server) repo, shipped as a Docker image
 behind a reverse proxy that handles HTTPS. Phones on other networks reach it over the
 internet; the Mac connects to it as the game's **host** over the [host protocol](#host-protocol--v1).
-Setup is in [`Packages/MacpardyBuzzer/README.md`](../Packages/MacpardyBuzzer/README.md).
+Setup is in [`self-hosting.md`](self-hosting.md); the server's configuration table is in
+that repo's [README](https://github.com/liljimmyk99/Macpardy-Buzzer-Server#configuration).
 
 | Path | What |
 |------|------|

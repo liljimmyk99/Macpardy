@@ -180,7 +180,7 @@ GameState action ─▶ triggerSave() ─▶ GameSnapshot(from: self)
 
 ## Phone buzzers
 
-Code: the rules are in the `BuzzerCore` package (`Packages/MacpardyBuzzer`), centred on
+Code: the rules are in the `BuzzerCore` package ([Macpardy-Buzzer-Server](https://github.com/liljimmyk99/Macpardy-Buzzer-Server), a separate repo), centred on
 `BuzzerRoom`; the Network.framework transport and the app bridge are in `Services/Buzzer/`.
 Protocol: [buzzer-protocol.md](buzzer-protocol.md).
 
@@ -284,7 +284,7 @@ Protocol: [buzzer-protocol.md](buzzer-protocol.md).
   decision:** the built-in server stays on Network.framework (it works, it's tuned to the
   Mac's network, and the app doesn't pull in NIO); only the self-hosted server uses SwiftNIO.
   `RemoteBuzzerBackend` (#104) is the app's side: it connects to `/host` with `URLSessionWebSocketTask` (behind `HostSocket`, so tests use a fake server), maps `BuzzerBackend` commands to `HostCommand`s and `HostEvent`s to `BuzzerRoomEvent`s, and reconnects with backoff within the grace period using the resume token. It reports `BuzzerConnectionStatus` (`.reconnecting`, `.connected`, `.ended`) through `onStatusChange`; `BuzzerState` shows it (`isReconnecting`) and resyncs after `.connected`. `BuzzerState(fromSettings:)` picks the backend from Settings at each start; the host token comes from `HostTokenStore` (Keychain). See
-  [buzzer-protocol.md](buzzer-protocol.md#self-hosted-server).
+  [buzzer-protocol.md](buzzer-protocol.md#self-hosted-server) and [self-hosting.md](self-hosting.md).
 
 ## Logging
 

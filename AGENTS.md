@@ -28,7 +28,8 @@ web page the app serves on the local network.
 | [`docs/csv-import.md`](docs/csv-import.md) | Touching CSV import or the CSV template |
 | [`docs/sounds.md`](docs/sounds.md) | Touching sound effects, music, or the sound settings |
 | [`docs/buzzer-protocol.md`](docs/buzzer-protocol.md) | Touching the phone buzzer server, `buzzer.html`, or any WebSocket message |
-| [`Packages/MacpardyBuzzer/README.md`](Packages/MacpardyBuzzer/README.md) | Running or changing the self-hosted buzzer server, its Docker image or config |
+| [`docs/self-hosting.md`](docs/self-hosting.md) | Pointing users at the self-hosted buzzer server (the full guide is in its repo) |
+| [Macpardy-Buzzer-Server](https://github.com/liljimmyk99/Macpardy-Buzzer-Server) | Running or changing the self-hosted buzzer server, its Docker image or config (its own repo) |
 | [`EXPORTING.md`](EXPORTING.md) | Building a shareable `.app` / `.dmg`, or cutting a release |
 
 ## Build, run, test
@@ -45,13 +46,8 @@ xcodebuild test \
   -scheme Macpardy \
   -destination 'platform=macOS'
 
-# Buzzer core package tests (not part of the Xcode scheme; CI also runs them on Linux)
-swift test --package-path Packages/MacpardyBuzzer
-
-# Self-hosted buzzer server, locally and in Docker (see Packages/MacpardyBuzzer/README.md)
-MACPARDY_HOST_TOKEN=<16+ chars> swift run --package-path Packages/MacpardyBuzzer macpardy-buzzer-server
-docker build -t macpardy-buzzer-server Packages/MacpardyBuzzer
-node Packages/MacpardyBuzzer/scripts/smoke-test.mjs http://127.0.0.1:8472 <token>
+# The buzzer package and self-hosted server are in their own repo (Macpardy-Buzzer-Server):
+# clone it, then `swift test`, `swift run macpardy-buzzer-server`, `docker build -t macpardy-buzzer-server .`
 
 # Release build + ad-hoc signed .app and .dmg (see EXPORTING.md)
 ./scripts/export.sh
@@ -142,8 +138,8 @@ level, but saved and exported). See [`docs/architecture.md`](docs/architecture.m
 ### Tests
 - XCTest, in `MacpardyTests/`, one file per type under test (`<Type>Tests.swift`), classes
   marked `@MainActor`, `@testable import Macpardy`.
-- Tests for `BuzzerCore` live in `Packages/MacpardyBuzzer/Tests/BuzzerCoreTests/`
-  (`@testable import BuzzerCore`, no `@MainActor`) and run with `swift test`.
+- Tests for `BuzzerCore` live in the buzzer package repo, `Tests/BuzzerCoreTests/`
+  (`@testable import BuzzerCore`, no `@MainActor`) and run with `swift test` there.
 - Add tests for any new parsing, validation, or game/buzzer rule. Inject time, randomness,
   and directories (see `BuzzTieResolver`'s `randomIndex`, `GameSaveStore(baseDirectory:)`)
   instead of depending on the real ones.
@@ -180,8 +176,9 @@ the internet. Tracking issue: #99. Phases, in order: #100 extract the core, #101
 self-hosted server, #104 connect the app to it, #105 docs, CI, release and the repo move.
 
 Decisions made. Build to these; don't reopen them in a PR without asking:
-- **Location.** The package lives in `Packages/MacpardyBuzzer` (a local Tuist package) while
-  the work is in progress, then moves to its own repo once all phases are done.
+- **Location.** The package lives in its own repo,
+  [Macpardy-Buzzer-Server](https://github.com/liljimmyk99/Macpardy-Buzzer-Server), and the app pins a released version in `Project.swift`
+  (done in #105). Change the package there, release, then bump the pin.
 - **Two modes.** The built-in server stays the default and is for phones on the same network
   as the Mac. The self-hosted server is opt-in (Settings > Buzzers: server URL and host
   token) and is for phones on other networks. Don't add support for playing on the
@@ -239,6 +236,8 @@ While this is in progress:
 - To release, bump `MARKETING_VERSION` in `Project.swift` in its own PR, merge it, then
   run the **Release** workflow on `master` by hand; it tags, builds and publishes the
   GitHub release (see `EXPORTING.md`). Don't create release tags by hand.
+- The buzzer package and its Docker image are released from their own repo (its **Release**
+  workflow tags a version and pushes the image to GHCR). Then bump the pin in `Project.swift`.
 - Commit messages and PR titles follow Conventional Commits: `feat: …`, `fix: …`, `docs: …`.
 - PR descriptions: start with `Closes #<n>.`, then **What changed**, behaviour changes the
   reviewer should know about, and anything deliberately left out.

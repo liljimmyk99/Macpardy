@@ -1,5 +1,0 @@
-.build
-.swiftpm
-*.xcodeproj
-deploy/host_token.txt
-.env
