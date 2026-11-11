@@ -21,6 +21,11 @@ web page the app serves on the local network.
 
 | Doc | Read it when you're… |
 |---|---|
+| [`README.md`](README.md) | Getting the overview, screenshots and links (screenshots live in `docs/images/`) |
+| [`docs/getting-started.md`](docs/getting-started.md) | Setting up, building, running, testing, and playing a first game |
+| [`docs/how-to.md`](docs/how-to.md) | Following a recipe: add a setting, view, string, sound, shortcut; change a format; release |
+| [`docs/troubleshooting.md`](docs/troubleshooting.md) | Debugging phones that can't connect, logs, or build problems |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | The short contributor workflow |
 | [`docs/features.md`](docs/features.md) | Figuring out what the app does and how a game flows, from the host's side |
 | [`docs/architecture.md`](docs/architecture.md) | Changing state, windows, phases, persistence, or how pieces talk to each other |
 | [`docs/file-structure.md`](docs/file-structure.md) | Looking for where something lives or where a new file should go |
