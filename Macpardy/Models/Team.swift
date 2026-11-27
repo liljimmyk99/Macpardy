@@ -10,7 +10,8 @@ import SwiftUI
 struct Team: Identifiable, Equatable, Codable {
 
     /// Most teams a game can have; each can be claimed by one buzzer phone.
-    static let maxCount = 4
+    /// One per team color, so no two teams start with the same color.
+    static let maxCount = 6
 
     let id: UUID
     var name: String
@@ -46,8 +47,16 @@ struct Team: Identifiable, Equatable, Codable {
 
 extension Team {
 
-    /// Colors given to new teams, in order.
-    static let defaultColors = ["blue", "red", "green", "yellow"]
+    /// Colors given to new teams, in order. One per team up to `maxCount`.
+    static let defaultColors = colorOptions
+
+    /// The first color in `defaultColors` no team in `teams` is using, or the
+    /// next one in order when all are taken.
+    static func nextColor(after teams: [Team]) -> String {
+        let used = Set(teams.map { $0.color.lowercased() })
+        return defaultColors.first { !used.contains($0) }
+            ?? defaultColors[teams.count % defaultColors.count]
+    }
 
     /// The starting teams, using the count and names from Settings.
     static var defaultNewTeams: [Team] {
@@ -56,7 +65,7 @@ extension Team {
             Team(
                 name: AppSettings.customTeamName(at: index) ?? String(localized: "team.default_name \(index + 1)"),
                 score: 0,
-                color: defaultColors[index]
+                color: defaultColors[index % defaultColors.count]
             )
         }
     }

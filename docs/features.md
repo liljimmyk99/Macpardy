@@ -12,7 +12,7 @@ What Macpardy does, from the point of view of the people using it. For how it's 
 | **Teams (optional)** | Phone browser | Join a team, buzz in, submit Final Macpardy wagers |
 
 A game is three rounds, like the TV show: **Macpardy** (6 categories × 5 clues),
-**Double Macpardy** (6 × 5), and **Final Macpardy** (one clue). Up to 4 teams play.
+**Double Macpardy** (6 × 5), and **Final Macpardy** (one clue). Up to 6 teams play.
 
 ## 1. Getting a game
 
@@ -124,7 +124,7 @@ host to start a game…" screen, so it can go up on the TV early.
 
 | Phase | Host (Control) | Display |
 |---|---|---|
-| **Setup** | Team cards (max 4): rename, pick a color swatch, remove, **Add Team**; buzzer panel with QR code, Game PIN, page address, and how many teams have a phone; **Start Game**. With buzzers off: no phone status, and the panel just says buzzers are off | Buzzer QR code, page address, and Game PIN, with a card per team showing **Connected** / **Not connected**; "Waiting to start game…" if the buzzer server isn't running. With buzzers off: a card per team with its name only |
+| **Setup** | Team cards (max 6): rename, pick a color swatch, remove, **Add Team**; buzzer panel with QR code, Game PIN, page address, and how many teams have a phone; **Start Game**. With buzzers off: no phone status, and the panel just says buzzers are off | Buzzer QR code, page address, and Game PIN, with a card per team showing **Connected** / **Not connected**; "Waiting to start game…" if the buzzer server isn't running. With buzzers off: a card per team with its name only |
 | **Board** | Pick a clue from the board (click, or arrow keys + Return); **Next Round**; show/hide the Display window | The board, played tiles blanked, the host's highlighted tile |
 | **Daily Double** | Pick the team and wager (quick-wager buttons), **Show Question** | Daily Double splash |
 | **Question** | Clue as a big tile, correct response (host only) with **Reveal Answer**, who buzzed first with their response timer (5 s by default) (or the Daily Double team and wager), question timer ring (15 s by default; start/pause/reset/±5 s), ✓/✗ score buttons on each team card (only the Daily Double team's on a Daily Double), **Return to Board** in the toolbar | Clue (and picture, if any), timer; response-timer dots above the answering team's score |
@@ -251,7 +251,7 @@ are remembered (`UserDefaults`, keys in `AppSettings`).
 
 - **Sound:** sound effects and music, the same switches as the toolbar's Sound menu.
 - **Game:** question timer length (5–60 s in 5 s steps, default 15), answer time after a buzz
-  (3–30 s, default 5), starting team count (1–4, default 3) and starting team names (up to 100
+  (3–30 s, default 5), starting team count (1–6, default 3) and starting team names (up to 100
   characters; empty uses "Team N"). Timer lengths apply the next time a timer starts; team
   settings apply to games started afterwards.
 - **Display:** animations on or off (default on). They are also off whenever macOS

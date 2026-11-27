@@ -183,7 +183,7 @@ Sent to the joining phone after a valid join code is received.
 | Payload field | Type     | Description                                                     |
 |---------------|----------|-----------------------------------------------------------------|
 | `version`     | int      | Protocol version the server is speaking. Currently always `10`. |
-| `teams`       | object[] | Teams in display order (at most 4). `claimed` is true while a phone holds the team; the phone disables that team's Join button. `color` is one of `blue`, `red`, `green`, `yellow`, `purple`, `orange`. |
+| `teams`       | object[] | Teams in display order (at most 6, the app's `Team.maxCount`; the servers don't enforce a team cap). `claimed` is true while a phone holds the team; the phone disables that team's Join button. `color` is one of `blue`, `red`, `green`, `yellow`, `purple`, `orange`. |
 
 ---
 

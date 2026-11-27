@@ -38,7 +38,7 @@ Macpardy/
 │   ├── Category.swift
 │   ├── Question.swift            value, clue, response, played, Daily Double, image
 │   ├── QuestionImage.swift       image path + bytes; controls whether bytes are encoded
-│   ├── Team.swift                name, score, color (max 4)
+│   ├── Team.swift                name, score, color (max 6)
 │   ├── GamePhase.swift           setup, board, question, answer, dailyDouble, final…
 │   ├── BoardNavigator.swift      Arrow-key board highlight: moves over open tiles
 │   ├── GameState.swift           @Observable game in progress; all game actions

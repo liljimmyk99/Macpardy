@@ -472,8 +472,7 @@ final class GameState {
         guard game.teams.count < Team.maxCount else { return }
         let count = game.teams.count + 1
         let teamName = name.isEmpty ? String(localized: "team.default_name \(count)") : name
-        let availableColors = ["blue", "red", "green", "yellow", "purple", "orange"]
-        let chosenColor = availableColors[(count - 1) % availableColors.count]
+        let chosenColor = Team.nextColor(after: game.teams)
         game.teams.append(Team(name: teamName, score: 0, color: chosenColor))
         log.state("Team added: \(teamLabel(game.teams.last?.id)) \(chosenColor)", team: teamName)
         triggerSave()

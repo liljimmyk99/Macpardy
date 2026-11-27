@@ -2,7 +2,7 @@ import SwiftUI
 
 extension SetupControlView {
 
-    /// One cell of the 2 × 2 team grid.
+    /// One cell of the two-column team grid (up to `Team.maxCount` cells).
     private enum TeamSlot: Identifiable {
         case team(Team)
         case add
