@@ -19,22 +19,21 @@ struct TeamScoreCard: View {
     private var buzzedFirst: Bool { buzzerState.firstBuzzTeamID == team.id }
 
     var body: some View {
-        HStack(spacing: 10) {
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(team.name)
-                        .font(.subheadline.bold())
-                        .lineLimit(1)
-                    teamStatus
-                }
-
-                Text("$\(team.score)")
-                    .font(MacpardyTheme.controlTeamScoreFont)
+        // Side by side when there's room; with five or six teams the cards get
+        // narrow, so the buttons drop below the score.
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 10) {
+                nameAndScore
+                Spacer(minLength: 0)
+                buttons
             }
-
-            Spacer(minLength: 0)
-
-            buttons
+            VStack(alignment: .leading, spacing: 8) {
+                nameAndScore
+                HStack(spacing: 6) {
+                    buttons
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.horizontal, 14)
         .padding(.top, 14)
@@ -51,6 +50,20 @@ struct TeamScoreCard: View {
             LoggedButton("control.score.button.reset", log: "Control › Score strip › \(gameState.teamLabel(team.id)) › Reset (context menu)") {
                 gameState.resetScore(for: team.id)
             }
+        }
+    }
+
+    private var nameAndScore: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 6) {
+                Text(team.name)
+                    .font(.subheadline.bold())
+                    .lineLimit(1)
+                teamStatus
+            }
+
+            Text("$\(team.score)")
+                .font(MacpardyTheme.controlTeamScoreFont)
         }
     }
 

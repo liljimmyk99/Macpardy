@@ -2,7 +2,7 @@ import SwiftUI
 
 extension ScoreboardView {
     func scoreboardContent() -> some View {
-        HStack(spacing: 32) {
+        HStack(spacing: teams.count > 4 ? 16 : 32) {
             ForEach(teams) { team in
                 TeamScoreView(
                     team: team,

@@ -14,10 +14,22 @@ struct DisplayTeamConnectionRow: View {
     /// `nil` when buzzers are off: names only, no phone status.
     let connectedTeamIDs: Set<UUID>?
 
+    /// Up to four chips fit on one line; five or six wrap into rows of three.
+    private var rows: [[Team]] {
+        let perRow = teams.count > 4 ? 3 : max(teams.count, 1)
+        return stride(from: 0, to: teams.count, by: perRow).map {
+            Array(teams[$0..<min($0 + perRow, teams.count)])
+        }
+    }
+
     var body: some View {
-        HStack(spacing: 20) {
-            ForEach(teams) { team in
-                teamChip(team, isConnected: connectedTeamIDs?.contains(team.id))
+        VStack(spacing: 20) {
+            ForEach(rows.indices, id: \.self) { rowIndex in
+                HStack(spacing: 20) {
+                    ForEach(rows[rowIndex]) { team in
+                        teamChip(team, isConnected: connectedTeamIDs?.contains(team.id))
+                    }
+                }
             }
         }
     }
@@ -51,6 +63,13 @@ struct DisplayTeamConnectionRow: View {
         .opacity(isConnected ? 1 : 0.75)
         .animation(.easeInOut(duration: 0.25), value: isConnected)
     }
+}
+
+#Preview("Six teams") {
+    let teams = Team.colorOptions.enumerated().map { Team(name: "Team \($0.offset + 1)", color: $0.element) }
+    return DisplayTeamConnectionRow(teams: teams, connectedTeamIDs: [teams[0].id, teams[4].id])
+        .padding()
+        .background(MacpardyTheme.boardBlue)
 }
 
 #Preview {

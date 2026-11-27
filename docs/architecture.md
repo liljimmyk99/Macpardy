@@ -111,7 +111,7 @@ Game
  │         └─ questions: [Question] id, value, clue, response,
  │                                  hasBeenPlayed, isDailyDouble, image: QuestionImage?
  ├─ currentRound: Int
- └─ teams: [Team]                   id, name, score, color   (max 4)
+ └─ teams: [Team]                   id, name, score, color   (max 6)
 ```
 
 `MacpardyRound` is `macpardy | doubleMacpardy | finalMacpardy`. A board file's game title is
